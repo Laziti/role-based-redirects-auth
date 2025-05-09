@@ -10,6 +10,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
+import PendingApproval from "./pages/PendingApproval";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoadingScreen from "./components/LoadingScreen";
 
@@ -31,8 +32,22 @@ const AppRoutes = () => {
       <Route 
         path="/agent" 
         element={
-          <ProtectedRoute allowedRoles={['agent']}>
+          <ProtectedRoute 
+            allowedRoles={['agent']}
+            requiredStatus={['approved']}
+          >
             <AgentDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/pending" 
+        element={
+          <ProtectedRoute 
+            allowedRoles={['agent']}
+            requiredStatus={['pending_approval']}
+          >
+            <PendingApproval />
           </ProtectedRoute>
         } 
       />

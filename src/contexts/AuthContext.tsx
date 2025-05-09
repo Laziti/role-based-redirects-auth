@@ -9,6 +9,7 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   userRole: 'super_admin' | 'agent' | null;
+  userStatus: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any | null }>;
   signUp: (email: string, password: string) => Promise<{ error: any | null }>;
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<'super_admin' | 'agent' | null>(null);
+  const [userStatus, setUserStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -31,11 +33,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // If session exists, fetch user role
+        // If session exists, fetch user role and status
         if (session?.user) {
           fetchUserRole(session.user.id);
+          fetchUserStatus(session.user.id);
         } else {
           setUserRole(null);
+          setUserStatus(null);
         }
       }
     );
@@ -45,9 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       
-      // If session exists, fetch user role
+      // If session exists, fetch user role and status
       if (session?.user) {
         fetchUserRole(session.user.id);
+        fetchUserStatus(session.user.id);
       }
       
       setLoading(false);
@@ -76,6 +81,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error in fetchUserRole:', error);
       setUserRole(null);
+    }
+  };
+
+  // Fetch user status from the database
+  const fetchUserStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('status')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user status:', error);
+        setUserStatus(null);
+      } else {
+        setUserStatus(data.status);
+      }
+    } catch (error) {
+      console.error('Error in fetchUserStatus:', error);
+      setUserStatus(null);
     }
   };
 
@@ -112,7 +138,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userRole, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      userRole, 
+      userStatus,
+      loading, 
+      signIn, 
+      signUp, 
+      signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );

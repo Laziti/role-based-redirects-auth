@@ -2,23 +2,25 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import LoadingScreen from './LoadingScreen';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
   allowedRoles: Array<'super_admin' | 'agent'>;
+  requiredStatus?: Array<string> | null;
 };
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, userRole, loading } = useAuth();
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  allowedRoles,
+  requiredStatus = null 
+}) => {
+  const { user, userRole, userStatus, loading } = useAuth();
   const location = useLocation();
 
   // Show loading state
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // If not authenticated, redirect to login
@@ -32,15 +34,36 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     if (userRole === 'super_admin') {
       return <Navigate to="/admin" replace />;
     }
-    // Redirect agent to agent dashboard
+    // Redirect agent to agent dashboard or pending page depending on status
     if (userRole === 'agent') {
-      return <Navigate to="/agent" replace />;
+      if (userStatus === 'approved') {
+        return <Navigate to="/agent" replace />;
+      } else {
+        return <Navigate to="/pending" replace />;
+      }
     }
     // Fallback to login page
     return <Navigate to="/auth" replace />;
   }
 
-  // If authenticated and has permission, render children
+  // If status check is required and status doesn't match, redirect
+  if (requiredStatus !== null && userStatus && !requiredStatus.includes(userStatus)) {
+    if (userRole === 'agent' && userStatus === 'pending_approval') {
+      return <Navigate to="/pending" replace />;
+    }
+    
+    if (userRole === 'agent' && userStatus === 'approved') {
+      return <Navigate to="/agent" replace />;
+    }
+    
+    if (userRole === 'super_admin') {
+      return <Navigate to="/admin" replace />;
+    }
+    
+    return <Navigate to="/auth" replace />;
+  }
+
+  // If authenticated and has permission with correct status, render children
   return <>{children}</>;
 };
 

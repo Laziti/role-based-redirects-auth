@@ -1,30 +1,59 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [career, setCareer] = useState('');
+  const [paymentReceipt, setPaymentReceipt] = useState<File | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, signUp, userRole } = useAuth();
+  const { signIn, signUp, user, userRole, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Redirect authenticated users to appropriate dashboard
-  React.useEffect(() => {
-    if (userRole) {
-      if (userRole === 'super_admin') {
-        navigate('/admin');
-      } else if (userRole === 'agent') {
+  useEffect(() => {
+    if (user && userRole) {
+      redirectBasedOnRoleAndStatus();
+    }
+  }, [user, userRole]);
+
+  const redirectBasedOnRoleAndStatus = async () => {
+    if (!user) return;
+
+    if (userRole === 'super_admin') {
+      navigate('/admin');
+    } else if (userRole === 'agent') {
+      // Check user status
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('status')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        toast.error('Error checking user status');
+        return;
+      }
+
+      if (data.status === 'approved') {
         navigate('/agent');
+      } else {
+        navigate('/pending');
       }
     }
-  }, [userRole, navigate]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,12 +61,51 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
+        // Upload payment receipt if provided
+        let receiptUrl = null;
+        if (paymentReceipt) {
+          const fileExt = paymentReceipt.name.split('.').pop();
+          const fileName = `${Math.random()}.${fileExt}`;
+          const filePath = `payment_receipts/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('profiles')
+            .upload(filePath, paymentReceipt);
+
+          if (uploadError) {
+            toast.error('Error uploading payment receipt');
+            setIsSubmitting(false);
+            return;
+          }
+
+          // Get the public URL
+          const { data } = supabase.storage.from('profiles').getPublicUrl(filePath);
+          receiptUrl = data.publicUrl;
+        }
+
         // Handle sign up
         const { error } = await signUp(email, password);
         if (error) {
           toast.error(error.message);
         } else {
-          toast.success('Account created successfully! Please check your email for verification.');
+          // Update profile information
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({
+              first_name: firstName,
+              last_name: lastName,
+              phone_number: phoneNumber,
+              career: career,
+              payment_receipt_url: receiptUrl
+            })
+            .eq('id', user?.id);
+
+          if (profileError) {
+            toast.error('Error updating profile information');
+          } else {
+            toast.success('Account created successfully! Your account is pending approval.');
+            navigate('/pending');
+          }
         }
       } else {
         // Handle sign in
@@ -46,13 +114,19 @@ const Auth = () => {
           toast.error(error.message);
         } else {
           toast.success('Signed in successfully!');
-          // Navigation will happen automatically through the auth context
+          // Navigation will happen automatically through the auth context useEffect
         }
       }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setPaymentReceipt(e.target.files[0]);
     }
   };
 
@@ -90,6 +164,7 @@ const Auth = () => {
                 className="mt-1"
               />
             </div>
+
             <div>
               <Label htmlFor="password">Password</Label>
               <Input
@@ -103,6 +178,75 @@ const Auth = () => {
                 className="mt-1"
               />
             </div>
+
+            {isSignUp && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      type="text"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      type="text"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    type="tel"
+                    required
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="career">Career</Label>
+                  <Textarea
+                    id="career"
+                    name="career"
+                    required
+                    value={career}
+                    onChange={(e) => setCareer(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="paymentReceipt">Upload Payment Receipt (Image/PDF)</Label>
+                  <Input
+                    id="paymentReceipt"
+                    name="paymentReceipt"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    required
+                    onChange={handleFileChange}
+                    className="mt-1"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div>

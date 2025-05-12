@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +13,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: any | null }>;
   signUp: (email: string, password: string) => Promise<{ error: any | null }>;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>; // Added the missing refreshSession method
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -137,6 +137,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Added refreshSession method
+  const refreshSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserRole(session.user.id);
+        fetchUserStatus(session.user.id);
+      }
+    } catch (error) {
+      console.error('Error refreshing session:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       session, 
@@ -146,7 +162,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading, 
       signIn, 
       signUp, 
-      signOut 
+      signOut,
+      refreshSession  // Added the refreshSession to the context value
     }}>
       {children}
     </AuthContext.Provider>

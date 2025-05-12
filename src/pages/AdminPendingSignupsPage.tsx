@@ -27,7 +27,7 @@ import { format } from 'date-fns';
 
 type PendingUser = {
   id: string;
-  email: string;
+  email?: string;
   first_name: string;
   last_name: string;
   phone_number: string;
@@ -60,15 +60,28 @@ const AdminPendingSignupsPage = () => {
         return;
       }
       
-      const processedUsers = profiles.map(profile => ({
+      // Get user roles to ensure they have agent role
+      const { data: userRoles, error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('role', 'agent');
+        
+      if (userRolesError) throw userRolesError;
+      
+      // Filter profiles for those that have agent role
+      const agentUsers = profiles.filter(profile => 
+        userRoles?.some(role => role.user_id === profile.id)
+      );
+      
+      const processedUsers = agentUsers.map(profile => ({
         id: profile.id,
-        email: 'Email not available',  // Default value
+        email: 'Email not available', // Default value
         first_name: profile.first_name || '',
         last_name: profile.last_name || '',
         phone_number: profile.phone_number || '',
         career: profile.career || '',
         payment_receipt_url: profile.payment_receipt_url || '',
-        created_at: profile.updated_at  // Use updated_at as fallback for created_at
+        created_at: profile.updated_at || new Date().toISOString() // Use updated_at as fallback for created_at
       }));
       
       setPendingUsers(processedUsers);
@@ -111,17 +124,10 @@ const AdminPendingSignupsPage = () => {
       // Delete the profiles and user_roles entries
       const { error: profileError } = await supabase
         .from('profiles')
-        .delete()
+        .update({ status: 'rejected' })
         .eq('id', selectedUser.id);
         
       if (profileError) throw profileError;
-      
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', selectedUser.id);
-        
-      if (roleError) throw roleError;
       
       toast.success(`User ${selectedUser.first_name} ${selectedUser.last_name} rejected`);
       fetchPendingUsers();
@@ -159,24 +165,24 @@ const AdminPendingSignupsPage = () => {
                         <CardTitle className="text-lg">
                           {user.first_name} {user.last_name}
                         </CardTitle>
-                        <Badge className="bg-yellow-500">Pending</Badge>
+                        <Badge variant="pending">Pending</Badge>
                       </div>
                     </CardHeader>
                     
                     <CardContent className="space-y-3">
                       <div>
                         <div className="text-sm font-medium text-gray-500">Email</div>
-                        <div>{user.email}</div>
+                        <div>{user.email || 'Not available'}</div>
                       </div>
                       
                       <div>
                         <div className="text-sm font-medium text-gray-500">Phone</div>
-                        <div>{user.phone_number}</div>
+                        <div>{user.phone_number || 'Not available'}</div>
                       </div>
                       
                       <div>
                         <div className="text-sm font-medium text-gray-500">Career</div>
-                        <div className="max-h-20 overflow-y-auto">{user.career}</div>
+                        <div className="max-h-20 overflow-y-auto">{user.career || 'Not specified'}</div>
                       </div>
                       
                       <div>
@@ -259,7 +265,7 @@ const AdminPendingSignupsPage = () => {
                 <AlertDialogTitle>Reject User</AlertDialogTitle>
                 <AlertDialogDescription>
                   Are you sure you want to reject {selectedUser?.first_name} {selectedUser?.last_name}?
-                  This will permanently delete their account data.
+                  This will mark their account as rejected.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

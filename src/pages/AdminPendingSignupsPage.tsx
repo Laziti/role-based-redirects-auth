@@ -33,7 +33,7 @@ type PendingUser = {
   phone_number: string | null;
   career: string | null;
   payment_receipt_url: string | null;
-  created_at: string;
+  updated_at: string; // Changed from created_at to updated_at to match the data from Supabase
 };
 
 const AdminPendingSignupsPage = () => {
@@ -91,7 +91,7 @@ const AdminPendingSignupsPage = () => {
         phone_number: profile.phone_number,
         career: profile.career,
         payment_receipt_url: profile.payment_receipt_url,
-        created_at: profile.updated_at || profile.created_at || new Date().toISOString()
+        updated_at: profile.updated_at // Using the updated_at field from the profile
       }));
       
       setPendingUsers(pendingAgents);
@@ -198,8 +198,8 @@ const AdminPendingSignupsPage = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-500">Submitted</div>
                         <div>
-                          {user.created_at 
-                            ? format(new Date(user.created_at), 'MMM d, yyyy')
+                          {user.updated_at 
+                            ? format(new Date(user.updated_at), 'MMM d, yyyy')
                             : 'Unknown'
                           }
                         </div>

@@ -1,61 +1,113 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import AdminSidebar from '@/components/AdminSidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const AdminDashboard = () => {
-  const { signOut, user } = useAuth();
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    totalAgents: 0,
+    totalListings: 0,
+    pendingUsers: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      setLoading(true);
+      try {
+        // Get count of agents
+        const { count: agentsCount, error: agentsError } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'agent');
+        
+        if (agentsError) throw agentsError;
+
+        // Get count of pending users
+        const { count: pendingCount, error: pendingError } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending_approval');
+        
+        if (pendingError) throw pendingError;
+
+        // Get count of listings
+        const { count: listingsCount, error: listingsError } = await supabase
+          .from('listings')
+          .select('*', { count: 'exact', head: true });
+        
+        if (listingsError) throw listingsError;
+
+        setStats({
+          totalAgents: agentsCount || 0,
+          totalListings: listingsCount || 0,
+          pendingUsers: pendingCount || 0
+        });
+      } catch (error: any) {
+        toast.error(`Error loading dashboard stats: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <span className="text-xl font-bold text-blue-600">Super Admin Dashboard</span>
-              </div>
-            </div>
+    <SidebarProvider>
+      <div className="flex h-screen w-full">
+        <AdminSidebar />
+        <SidebarInset>
+          <div className="flex items-center justify-between border-b p-4">
             <div className="flex items-center">
-              <span className="mr-4 text-sm text-gray-500">
-                {user?.email}
-              </span>
-              <button
-                onClick={signOut}
-                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Sign Out
-              </button>
+              <SidebarTrigger />
+              <h1 className="ml-4 text-xl font-semibold">Dashboard Overview</h1>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Welcome to the Admin Dashboard</h2>
-          <p className="text-gray-500">As a Super Admin, you have access to all features and functionality of the system.</p>
-          
-          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-lg font-medium mb-2">User Management</h3>
-              <p className="text-sm text-gray-500">Manage users and their permissions</p>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-lg font-medium mb-2">System Settings</h3>
-              <p className="text-sm text-gray-500">Configure system-wide settings</p>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-lg font-medium mb-2">Reports</h3>
-              <p className="text-sm text-gray-500">View system reports and analytics</p>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-lg font-medium mb-2">Audit Logs</h3>
-              <p className="text-sm text-gray-500">Review system activity and changes</p>
+          <div className="p-6">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {loading ? "Loading..." : stats.totalAgents}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total Listings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {loading ? "Loading..." : stats.totalListings}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {loading ? "Loading..." : stats.pendingUsers}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </div>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 

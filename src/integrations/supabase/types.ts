@@ -9,6 +9,44 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      listings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          status: string | null
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string | null
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -16,6 +54,7 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          listing_limit: Json | null
           payment_receipt_url: string | null
           phone_number: string | null
           status: string | null
@@ -27,6 +66,7 @@ export type Database = {
           first_name?: string | null
           id: string
           last_name?: string | null
+          listing_limit?: Json | null
           payment_receipt_url?: string | null
           phone_number?: string | null
           status?: string | null
@@ -38,6 +78,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          listing_limit?: Json | null
           payment_receipt_url?: string | null
           phone_number?: string | null
           status?: string | null

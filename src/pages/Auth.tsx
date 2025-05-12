@@ -61,9 +61,30 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
+        // First, create the user account
+        const { data: userData, error: signUpError } = await signUp(email, password);
+        
+        if (signUpError) {
+          toast.error(signUpError.message);
+          setIsSubmitting(false);
+          return;
+        }
+        
         // Upload payment receipt if provided
         let receiptUrl = null;
         if (paymentReceipt) {
+          // Create storage bucket if it doesn't exist (will be ignored if it does)
+          const { error: storageError } = await supabase.storage.createBucket('profiles', {
+            public: false,
+            fileSizeLimit: 10485760, // 10MB
+          });
+          
+          if (storageError && storageError.message !== 'Duplicate') {
+            toast.error(`Storage error: ${storageError.message}`);
+            setIsSubmitting(false);
+            return;
+          }
+          
           const fileExt = paymentReceipt.name.split('.').pop();
           const fileName = `${Math.random()}.${fileExt}`;
           const filePath = `payment_receipts/${fileName}`;
@@ -73,7 +94,7 @@ const Auth = () => {
             .upload(filePath, paymentReceipt);
 
           if (uploadError) {
-            toast.error('Error uploading payment receipt');
+            toast.error(`Error uploading payment receipt: ${uploadError.message}`);
             setIsSubmitting(false);
             return;
           }
@@ -83,30 +104,26 @@ const Auth = () => {
           receiptUrl = data.publicUrl;
         }
 
-        // Handle sign up
-        const { error } = await signUp(email, password);
-        if (error) {
-          toast.error(error.message);
-        } else {
-          // Update profile information
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              first_name: firstName,
-              last_name: lastName,
-              phone_number: phoneNumber,
-              career: career,
-              payment_receipt_url: receiptUrl
-            })
-            .eq('id', user?.id);
+        // Update profile information
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+            career: career,
+            payment_receipt_url: receiptUrl
+          })
+          .eq('id', userData?.user?.id);
 
-          if (profileError) {
-            toast.error('Error updating profile information');
-          } else {
-            toast.success('Account created successfully! Your account is pending approval.');
-            navigate('/pending');
-          }
+        if (profileError) {
+          toast.error(`Error updating profile: ${profileError.message}`);
+          setIsSubmitting(false);
+          return;
         }
+
+        toast.success('Account created successfully! Your account is pending approval.');
+        navigate('/pending');
       } else {
         // Handle sign in
         const { error } = await signIn(email, password);

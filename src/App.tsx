@@ -9,6 +9,9 @@ import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminUsersPage from "./pages/AdminUsersPage";
+import AdminPendingSignupsPage from "./pages/AdminPendingSignupsPage";
+import AdminListingsPage from "./pages/AdminListingsPage";
 import AgentDashboard from "./pages/AgentDashboard";
 import PendingApproval from "./pages/PendingApproval";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -26,6 +29,30 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['super_admin']}>
             <AdminDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/users" 
+        element={
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <AdminUsersPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/pending-signups" 
+        element={
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <AdminPendingSignupsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/listings" 
+        element={
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <AdminListingsPage />
           </ProtectedRoute>
         } 
       />

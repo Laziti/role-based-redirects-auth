@@ -56,35 +56,22 @@ const AdminListingsPage = () => {
       // Get user profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, phone_number')
         .in('id', userIds);
       
       if (profilesError) throw profilesError;
       
-      // Get user emails
-      const { data: authUsers, error: authError } = await supabase
-        .from('auth.users')
-        .select('id, email')
-        .in('id', userIds);
+      // Create a map of user data
+      let userMap: Record<string, { name: string; email: string; phone: string }> = {};
       
-      let userMap: Record<string, { name: string; email: string }> = {};
-      
-      // Create user map with profile data
+      // Add profile data to user map
       if (profiles) {
         profiles.forEach(profile => {
           userMap[profile.id] = {
             name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User',
-            email: 'Email not available'
+            email: 'Email not available', // We'll set default email
+            phone: profile.phone_number || 'N/A'
           };
-        });
-      }
-      
-      // Add email data to user map
-      if (!authError && authUsers) {
-        authUsers.forEach(user => {
-          if (userMap[user.id]) {
-            userMap[user.id].email = user.email;
-          }
         });
       }
       

@@ -42,6 +42,11 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
+type ListingLimit = {
+  type: 'day' | 'week' | 'month' | 'year' | 'unlimited';
+  value?: number;
+}
+
 type User = {
   id: string;
   email: string;
@@ -51,7 +56,7 @@ type User = {
   status: string;
   created_at: string;
   listing_count: number;
-  listing_limit?: { type: string; value: number };
+  listing_limit?: ListingLimit;
 };
 
 type LimitFormValues = {
@@ -99,32 +104,6 @@ const AdminUsersPage = () => {
       
       if (profilesError) throw profilesError;
       
-      // Get user emails from auth.users
-      const { data: authUsers, error: authError } = await supabase
-        .from('auth.users')
-        .select('id, email, created_at')
-        .in('id', userIds);
-      
-      if (authError) {
-        // Fall back to just using the profiles data without emails
-        console.error('Could not fetch user emails:', authError);
-        
-        const usersWithoutEmails = profiles.map(profile => ({
-          id: profile.id,
-          email: 'Email not available',
-          first_name: profile.first_name || '',
-          last_name: profile.last_name || '',
-          phone_number: profile.phone_number || '',
-          status: profile.status || '',
-          created_at: 'Unknown',
-          listing_count: 0,
-          listing_limit: profile.listing_limit
-        }));
-        
-        setUsers(usersWithoutEmails);
-        return;
-      }
-      
       // Count listings per user
       const listingCounts = await Promise.all(
         userIds.map(async (userId) => {
@@ -139,19 +118,31 @@ const AdminUsersPage = () => {
       
       // Combine all data
       const combinedUsers = profiles.map(profile => {
-        const authUser = authUsers?.find(u => u.id === profile.id);
         const listingData = listingCounts.find(l => l.userId === profile.id);
+        let listingLimit: ListingLimit | undefined = undefined;
+
+        if (profile.listing_limit) {
+          const limit = profile.listing_limit as any;
+          if (limit.type === 'unlimited') {
+            listingLimit = { type: 'unlimited' };
+          } else if (limit.type && limit.value) {
+            listingLimit = { 
+              type: limit.type as 'day' | 'week' | 'month' | 'year', 
+              value: Number(limit.value)
+            };
+          }
+        }
         
         return {
           id: profile.id,
-          email: authUser?.email || 'Email not available',
+          email: 'Email not available', // Default
           first_name: profile.first_name || '',
           last_name: profile.last_name || '',
           phone_number: profile.phone_number || '',
           status: profile.status || '',
-          created_at: authUser?.created_at ? authUser.created_at : 'Unknown',
+          created_at: profile.updated_at || new Date().toISOString(),
           listing_count: listingData?.count || 0,
-          listing_limit: profile.listing_limit
+          listing_limit: listingLimit
         };
       });
       
@@ -171,12 +162,20 @@ const AdminUsersPage = () => {
     if (!selectedUser) return;
     
     try {
-      // Delete user from auth (this will cascade delete their related data)
-      const { error } = await supabase.auth.admin.deleteUser(
-        selectedUser.id
-      );
+      // Delete the profiles and user_roles entries
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', selectedUser.id);
+        
+      if (profileError) throw profileError;
       
-      if (error) throw error;
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', selectedUser.id);
+        
+      if (roleError) throw roleError;
       
       toast.success(`User ${selectedUser.first_name} ${selectedUser.last_name} deleted`);
       fetchUsers();
@@ -219,7 +218,7 @@ const AdminUsersPage = () => {
     // Set form default values based on user's current limit
     if (user.listing_limit) {
       form.reset({
-        type: user.listing_limit.type as any || 'month',
+        type: user.listing_limit.type || 'month',
         value: user.listing_limit.value || 5
       });
     } else {
@@ -282,7 +281,7 @@ const AdminUsersPage = () => {
                           </span>
                         </TableCell>
                         <TableCell>
-                          {user.created_at !== 'Unknown' 
+                          {user.created_at 
                             ? format(new Date(user.created_at), 'MMM d, yyyy')
                             : 'Unknown'
                           }

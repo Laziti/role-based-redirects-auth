@@ -11,7 +11,8 @@ import {
   TableCell 
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { 
+import { Input } from '@/components/ui/input';
+import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogHeader,
@@ -36,11 +37,15 @@ import {
   FormLabel
 } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
-import { Input } from '@/components/ui/input';
+import { Input as FormInput } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { Search, Filter, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import UserEditModal from '@/components/admin/UserEditModal';
+import UserDetailsModal from '@/components/admin/UserDetailsModal';
 
 type ListingLimit = {
   type: 'day' | 'week' | 'month' | 'year' | 'unlimited';
@@ -49,12 +54,12 @@ type ListingLimit = {
 
 type User = {
   id: string;
-  email: string;
   first_name: string;
   last_name: string;
   phone_number: string;
   status: string;
   created_at: string;
+  career: string;
   listing_count: number;
   listing_limit?: ListingLimit;
 };
@@ -64,12 +69,22 @@ type LimitFormValues = {
   value: number;
 };
 
+type FilterOptions = {
+  status: 'all' | 'approved' | 'pending_approval';
+};
+
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<FilterOptions>({ status: 'all' });
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   
   const form = useForm<LimitFormValues>({
     defaultValues: {
@@ -91,6 +106,8 @@ const AdminUsersPage = () => {
       
       if (!userRoles || userRoles.length === 0) {
         setUsers([]);
+        setFilteredUsers([]);
+        setLoading(false);
         return;
       }
       
@@ -103,6 +120,13 @@ const AdminUsersPage = () => {
         .in('id', userIds);
       
       if (profilesError) throw profilesError;
+      
+      if (!profiles) {
+        setUsers([]);
+        setFilteredUsers([]);
+        setLoading(false);
+        return;
+      }
       
       // Count listings per user
       const listingCounts = await Promise.all(
@@ -117,7 +141,7 @@ const AdminUsersPage = () => {
       );
       
       // Combine all data
-      const combinedUsers = profiles.map(profile => {
+      const combinedUsers: User[] = profiles.map(profile => {
         const listingData = listingCounts.find(l => l.userId === profile.id);
         let listingLimit: ListingLimit | undefined = undefined;
 
@@ -135,18 +159,19 @@ const AdminUsersPage = () => {
         
         return {
           id: profile.id,
-          email: 'Email not available', // Default
           first_name: profile.first_name || '',
           last_name: profile.last_name || '',
           phone_number: profile.phone_number || '',
           status: profile.status || '',
           created_at: profile.updated_at || new Date().toISOString(),
+          career: profile.career || '',
           listing_count: listingData?.count || 0,
           listing_limit: listingLimit
         };
       });
       
       setUsers(combinedUsers);
+      applyFilters(combinedUsers, searchTerm, filters);
     } catch (error: any) {
       toast.error(`Error loading users: ${error.message}`);
     } finally {
@@ -154,15 +179,40 @@ const AdminUsersPage = () => {
     }
   };
 
+  const applyFilters = (userList: User[], search: string, filterOptions: FilterOptions) => {
+    let filtered = [...userList];
+    
+    // Apply status filter
+    if (filterOptions.status !== 'all') {
+      filtered = filtered.filter(user => user.status === filterOptions.status);
+    }
+    
+    // Apply search
+    if (search.trim() !== '') {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(
+        user => 
+          `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchLower) || 
+          user.phone_number.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    setFilteredUsers(filtered);
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    applyFilters(users, searchTerm, filters);
+  }, [searchTerm, filters]);
 
   const handleDelete = async () => {
     if (!selectedUser) return;
     
     try {
-      // Delete the profiles and user_roles entries
+      // Delete the profiles entry
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -170,6 +220,7 @@ const AdminUsersPage = () => {
         
       if (profileError) throw profileError;
       
+      // Delete user role
       const { error: roleError } = await supabase
         .from('user_roles')
         .delete()
@@ -228,6 +279,40 @@ const AdminUsersPage = () => {
     setLimitDialogOpen(true);
   };
 
+  const renderLimitBadge = (limit?: ListingLimit) => {
+    if (!limit) return 'Default (5/month)';
+    
+    if (limit.type === 'unlimited') {
+      return <Badge variant="outline" className="bg-blue-50">Unlimited</Badge>;
+    }
+    
+    return (
+      <Badge variant="outline" className="bg-green-50">
+        {limit.value}/{limit.type}
+      </Badge>
+    );
+  };
+
+  const openEditDialog = (user: User) => {
+    setSelectedUser(user);
+    setEditDialogOpen(true);
+  };
+
+  const openDetailsDialog = (user: User) => {
+    setSelectedUser(user);
+    setDetailsDialogOpen(true);
+  };
+
+  const handleFilterChange = (status: 'all' | 'approved' | 'pending_approval') => {
+    setFilters(prev => ({ ...prev, status }));
+    setFilterMenuOpen(false);
+  };
+
+  const clearFilters = () => {
+    setFilters({ status: 'all' });
+    setSearchTerm('');
+  };
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full">
@@ -241,16 +326,86 @@ const AdminUsersPage = () => {
           </div>
           
           <div className="p-6">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                  >
+                    <Filter className="h-4 w-4" />
+                    <span>Filter</span>
+                  </Button>
+                  
+                  {filterMenuOpen && (
+                    <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      <div className="p-2">
+                        <div className="px-2 py-1 text-sm font-semibold">Status</div>
+                        <button 
+                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
+                            ${filters.status === 'all' ? 'bg-gray-100 font-medium' : ''}`}
+                          onClick={() => handleFilterChange('all')}
+                        >
+                          All
+                        </button>
+                        <button 
+                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
+                            ${filters.status === 'approved' ? 'bg-gray-100 font-medium' : ''}`}
+                          onClick={() => handleFilterChange('approved')}
+                        >
+                          Approved
+                        </button>
+                        <button 
+                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
+                            ${filters.status === 'pending_approval' ? 'bg-gray-100 font-medium' : ''}`}
+                          onClick={() => handleFilterChange('pending_approval')}
+                        >
+                          Pending
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {(searchTerm || filters.status !== 'all') && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={clearFilters}
+                    className="flex items-center gap-1"
+                  >
+                    <X className="h-4 w-4" /> Clear
+                  </Button>
+                )}
+                
+                <Button onClick={fetchUsers} size="sm" disabled={loading}>
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Listings</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Listings</TableHead>
+                    <TableHead>Listing Limit</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -259,36 +414,50 @@ const AdminUsersPage = () => {
                     <TableRow>
                       <TableCell colSpan={7} className="text-center">Loading...</TableCell>
                     </TableRow>
-                  ) : users.length === 0 ? (
+                  ) : filteredUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center">No users found</TableCell>
                     </TableRow>
                   ) : (
-                    users.map(user => (
+                    filteredUsers.map(user => (
                       <TableRow key={user.id}>
-                        <TableCell>
+                        <TableCell className="font-medium">
                           {user.first_name} {user.last_name}
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.phone_number}</TableCell>
+                        <TableCell>{user.phone_number || 'N/A'}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs ${
+                          <div className={`px-2 py-1 rounded text-xs inline-block ${
                             user.status === 'approved' 
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {user.status}
-                          </span>
+                            {user.status === 'approved' ? 'Approved' : 'Pending'}
+                          </div>
                         </TableCell>
+                        <TableCell className="text-center">{user.listing_count}</TableCell>
                         <TableCell>
                           {user.created_at 
                             ? format(new Date(user.created_at), 'MMM d, yyyy')
                             : 'Unknown'
                           }
                         </TableCell>
-                        <TableCell>{user.listing_count}</TableCell>
+                        <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => openDetailsDialog(user)}
+                            >
+                              View
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => openEditDialog(user)}
+                            >
+                              Edit
+                            </Button>
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -377,7 +546,7 @@ const AdminUsersPage = () => {
                         <FormItem>
                           <FormLabel>Maximum Listings</FormLabel>
                           <FormControl>
-                            <Input 
+                            <FormInput 
                               type="number" 
                               {...field}
                               onChange={e => field.onChange(parseInt(e.target.value))}
@@ -398,6 +567,25 @@ const AdminUsersPage = () => {
               </Form>
             </DialogContent>
           </Dialog>
+
+          {/* Edit User Dialog */}
+          {selectedUser && (
+            <UserEditModal 
+              open={editDialogOpen}
+              onOpenChange={setEditDialogOpen}
+              user={selectedUser}
+              onSuccess={fetchUsers}
+            />
+          )}
+
+          {/* View User Details Dialog */}
+          {selectedUser && (
+            <UserDetailsModal
+              open={detailsDialogOpen}
+              onOpenChange={setDetailsDialogOpen}
+              user={selectedUser}
+            />
+          )}
         </SidebarInset>
       </div>
     </SidebarProvider>

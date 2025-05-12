@@ -1,290 +1,339 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { 
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { 
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+
+// Form Schemas
+const loginSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+});
+
+const signupSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  confirmPassword: z.string(),
+  firstName: z.string().min(1, { message: 'Please enter your first name.' }),
+  lastName: z.string().min(1, { message: 'Please enter your last name.' }),
+  phoneNumber: z.string().min(1, { message: 'Please enter your phone number.' }),
+  career: z.string().min(1, { message: 'Please tell us your career.' }),
+})
+.refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+type SignupFormValues = z.infer<typeof signupSchema>;
 
 const Auth = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [career, setCareer] = useState('');
-  const [paymentReceipt, setPaymentReceipt] = useState<File | null>(null);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, signUp, user, userRole, loading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('login');
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
+  const { refreshSession } = useAuth();
 
-  // Redirect authenticated users to appropriate dashboard
-  useEffect(() => {
-    if (user && userRole) {
-      redirectBasedOnRoleAndStatus();
-    }
-  }, [user, userRole]);
+  const loginForm = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
 
-  const redirectBasedOnRoleAndStatus = async () => {
-    if (!user) return;
+  const signupForm = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+      firstName: '',
+      lastName: '',
+      phoneNumber: '',
+      career: '',
+    },
+  });
 
-    if (userRole === 'super_admin') {
-      navigate('/admin');
-    } else if (userRole === 'agent') {
-      // Check user status
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('status')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        toast.error('Error checking user status');
-        return;
-      }
-
-      if (data.status === 'approved') {
-        navigate('/agent');
-      } else {
-        navigate('/pending');
-      }
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
+  const handleLoginSubmit = async (values: LoginFormValues) => {
+    setIsLoading(true);
     try {
-      if (isSignUp) {
-        // First, create the user account
-        const { data: userData, error: signUpError } = await signUp(email, password);
-        
-        if (signUpError) {
-          toast.error(signUpError.message);
-          setIsSubmitting(false);
-          return;
-        }
-        
-        // Upload payment receipt if provided
-        let receiptUrl = null;
-        if (paymentReceipt) {
-          // Create storage bucket if it doesn't exist (will be ignored if it does)
-          const { error: storageError } = await supabase.storage.createBucket('profiles', {
-            public: false,
-            fileSizeLimit: 10485760, // 10MB
-          });
-          
-          if (storageError && storageError.message !== 'Duplicate') {
-            toast.error(`Storage error: ${storageError.message}`);
-            setIsSubmitting(false);
-            return;
-          }
-          
-          const fileExt = paymentReceipt.name.split('.').pop();
-          const fileName = `${Math.random()}.${fileExt}`;
-          const filePath = `payment_receipts/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from('profiles')
-            .upload(filePath, paymentReceipt);
-
-          if (uploadError) {
-            toast.error(`Error uploading payment receipt: ${uploadError.message}`);
-            setIsSubmitting(false);
-            return;
-          }
-
-          // Get the public URL
-          const { data } = supabase.storage.from('profiles').getPublicUrl(filePath);
-          receiptUrl = data.publicUrl;
-        }
-
-        // Update profile information
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            first_name: firstName,
-            last_name: lastName,
-            phone_number: phoneNumber,
-            career: career,
-            payment_receipt_url: receiptUrl
-          })
-          .eq('id', userData?.user?.id);
-
-        if (profileError) {
-          toast.error(`Error updating profile: ${profileError.message}`);
-          setIsSubmitting(false);
-          return;
-        }
-
-        toast.success('Account created successfully! Your account is pending approval.');
-        navigate('/pending');
-      } else {
-        // Handle sign in
-        const { error } = await signIn(email, password);
-        if (error) {
-          toast.error(error.message);
-        } else {
-          toast.success('Signed in successfully!');
-          // Navigation will happen automatically through the auth context useEffect
-        }
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password
+      });
+      
+      if (error) throw error;
+      
+      // Refresh the auth context session
+      await refreshSession();
+      
+      navigate('/');
     } catch (error: any) {
-      toast.error(error.message || 'An error occurred');
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description: error.message || 'An unknown error occurred',
+      });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setPaymentReceipt(e.target.files[0]);
+  const handleSignupSubmit = async (values: SignupFormValues) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            first_name: values.firstName,
+            last_name: values.lastName,
+            phone_number: values.phoneNumber,
+            career: values.career
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: 'Account Created',
+        description: 'Your account has been created and is pending approval.',
+      });
+      
+      // Refresh the auth context session
+      await refreshSession();
+      
+      navigate('/pending-approval');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Signup Failed',
+        description: error.message || 'An unknown error occurred',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
-        <div className="text-center">
-          <h1 className="mt-6 text-3xl font-extrabold text-gray-900">
-            {isSignUp ? 'Create an account' : 'Sign in to your account'}
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            {isSignUp ? 'Already have an account?' : 'Don\'t have an account?'}{' '}
-            <button
-              type="button"
-              className="font-medium text-blue-600 hover:text-blue-500"
-              onClick={() => setIsSignUp(!isSignUp)}
-            >
-              {isSignUp ? 'Sign in' : 'Sign up'}
-            </button>
-          </p>
-        </div>
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-
-            {isSignUp && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      name="firstName"
-                      type="text"
-                      required
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="mt-1"
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-center text-2xl font-bold">Real Estate Portal</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="login">
+              <div className="space-y-4 py-2">
+                <Form {...loginForm}>
+                  <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
+                    <FormField
+                      control={loginForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="name@example.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      name="lastName"
-                      type="text"
-                      required
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="mt-1"
+                    
+                    <FormField
+                      control={loginForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="••••••••" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    name="phoneNumber"
-                    type="tel"
-                    required
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="career">Career</Label>
-                  <Textarea
-                    id="career"
-                    name="career"
-                    required
-                    value={career}
-                    onChange={(e) => setCareer(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="paymentReceipt">Upload Payment Receipt (Image/PDF)</Label>
-                  <Input
-                    id="paymentReceipt"
-                    name="paymentReceipt"
-                    type="file"
-                    accept="image/*,application/pdf"
-                    required
-                    onChange={handleFileChange}
-                    className="mt-1"
-                  />
-                </div>
-              </>
+                    
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? 'Logging in...' : 'Login'}
+                    </Button>
+                  </form>
+                </Form>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="signup">
+              <div className="space-y-4 py-2">
+                <Form {...signupForm}>
+                  <form onSubmit={signupForm.handleSubmit(handleSignupSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={signupForm.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="John" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={signupForm.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Doe" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={signupForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="name@example.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={signupForm.control}
+                      name="phoneNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="+1 (555) 000-0000" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={signupForm.control}
+                      name="career"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Career/Profession</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Real Estate Agent" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={signupForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="••••••••" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={signupForm.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Confirm Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="••••••••" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? 'Creating Account...' : 'Create Account'}
+                    </Button>
+                  </form>
+                </Form>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-2">
+          <div className="text-center text-sm text-gray-500">
+            {activeTab === 'login' ? (
+              <p>
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  className="text-blue-500 hover:underline"
+                  onClick={() => setActiveTab('signup')}
+                >
+                  Sign up
+                </button>
+              </p>
+            ) : (
+              <p>
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  className="text-blue-500 hover:underline"
+                  onClick={() => setActiveTab('login')}
+                >
+                  Log in
+                </button>
+              </p>
             )}
           </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Processing...
-                </span>
-              ) : isSignUp ? 'Sign up' : 'Sign in'}
-            </button>
-          </div>
-        </form>
-      </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

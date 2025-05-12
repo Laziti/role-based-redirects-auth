@@ -28,11 +28,11 @@ import { format } from 'date-fns';
 type PendingUser = {
   id: string;
   email?: string;
-  first_name: string;
-  last_name: string;
-  phone_number: string;
-  career: string;
-  payment_receipt_url: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone_number: string | null;
+  career: string | null;
+  payment_receipt_url: string | null;
   created_at: string;
 };
 
@@ -46,47 +46,58 @@ const AdminPendingSignupsPage = () => {
   const fetchPendingUsers = async () => {
     setLoading(true);
     try {
-      // Get users with pending_approval status
-      const { data: profiles, error: profilesError } = await supabase
+      // First get all users with pending_approval status
+      const { data: pendingProfiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('status', 'pending_approval');
       
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        throw profilesError;
+      }
       
-      if (!profiles || profiles.length === 0) {
+      if (!pendingProfiles || pendingProfiles.length === 0) {
         setPendingUsers([]);
         setLoading(false);
         return;
       }
-      
-      // Get user roles to ensure they have agent role
-      const { data: userRoles, error: userRolesError } = await supabase
+
+      // Extract IDs for querying user roles
+      const userIds = pendingProfiles.map(profile => profile.id);
+
+      // Get user roles to filter for agents only
+      const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('*')
-        .eq('role', 'agent');
-        
-      if (userRolesError) throw userRolesError;
-      
-      // Filter profiles for those that have agent role
-      const agentUsers = profiles.filter(profile => 
-        userRoles?.some(role => role.user_id === profile.id)
+        .eq('role', 'agent')
+        .in('user_id', userIds);
+
+      if (rolesError) {
+        throw rolesError;
+      }
+
+      // Filter profiles to only those with agent role
+      const agentUserIds = userRoles?.map(role => role.user_id) || [];
+      const agentPendingProfiles = pendingProfiles.filter(profile => 
+        agentUserIds.includes(profile.id)
       );
       
-      const processedUsers = agentUsers.map(profile => ({
+      // Try to get emails from auth users if possible (may not be available depending on permissions)
+      const pendingAgents = agentPendingProfiles.map(profile => ({
         id: profile.id,
-        email: 'Email not available', // Default value
-        first_name: profile.first_name || '',
-        last_name: profile.last_name || '',
-        phone_number: profile.phone_number || '',
-        career: profile.career || '',
-        payment_receipt_url: profile.payment_receipt_url || '',
-        created_at: profile.updated_at || new Date().toISOString() // Use updated_at as fallback for created_at
+        email: 'Not available', // Default value
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        phone_number: profile.phone_number,
+        career: profile.career,
+        payment_receipt_url: profile.payment_receipt_url,
+        created_at: profile.updated_at || profile.created_at || new Date().toISOString()
       }));
       
-      setPendingUsers(processedUsers);
+      setPendingUsers(pendingAgents);
     } catch (error: any) {
-      toast.error(`Error loading pending signups: ${error.message}`);
+      console.error('Error loading pending signups:', error);
+      toast.error(`Failed to load pending signups: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -107,7 +118,7 @@ const AdminPendingSignupsPage = () => {
       
       if (error) throw error;
       
-      toast.success(`User ${selectedUser.first_name} ${selectedUser.last_name} approved`);
+      toast.success(`User ${selectedUser.first_name || ''} ${selectedUser.last_name || ''} has been approved`);
       fetchPendingUsers();
     } catch (error: any) {
       toast.error(`Error approving user: ${error.message}`);
@@ -121,15 +132,14 @@ const AdminPendingSignupsPage = () => {
     if (!selectedUser) return;
     
     try {
-      // Delete the profiles and user_roles entries
-      const { error: profileError } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ status: 'rejected' })
         .eq('id', selectedUser.id);
         
-      if (profileError) throw profileError;
+      if (error) throw error;
       
-      toast.success(`User ${selectedUser.first_name} ${selectedUser.last_name} rejected`);
+      toast.success(`User ${selectedUser.first_name || ''} ${selectedUser.last_name || ''} has been rejected`);
       fetchPendingUsers();
     } catch (error: any) {
       toast.error(`Error rejecting user: ${error.message}`);
@@ -153,7 +163,7 @@ const AdminPendingSignupsPage = () => {
           
           <div className="p-6">
             {loading ? (
-              <div className="text-center py-10">Loading...</div>
+              <div className="text-center py-10">Loading pending signups...</div>
             ) : pendingUsers.length === 0 ? (
               <div className="text-center py-10">No pending signups found</div>
             ) : (
@@ -163,7 +173,7 @@ const AdminPendingSignupsPage = () => {
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <CardTitle className="text-lg">
-                          {user.first_name} {user.last_name}
+                          {user.first_name || 'Unknown'} {user.last_name || 'User'}
                         </CardTitle>
                         <Badge variant="pending">Pending</Badge>
                       </div>
@@ -177,7 +187,7 @@ const AdminPendingSignupsPage = () => {
                       
                       <div>
                         <div className="text-sm font-medium text-gray-500">Phone</div>
-                        <div>{user.phone_number || 'Not available'}</div>
+                        <div>{user.phone_number || 'Not provided'}</div>
                       </div>
                       
                       <div>
@@ -245,7 +255,7 @@ const AdminPendingSignupsPage = () => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Approve User</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to approve {selectedUser?.first_name} {selectedUser?.last_name}? 
+                  Are you sure you want to approve {selectedUser?.first_name || ''} {selectedUser?.last_name || ''}? 
                   They will gain access to the agent dashboard.
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -264,7 +274,7 @@ const AdminPendingSignupsPage = () => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Reject User</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to reject {selectedUser?.first_name} {selectedUser?.last_name}?
+                  Are you sure you want to reject {selectedUser?.first_name || ''} {selectedUser?.last_name || ''}?
                   This will mark their account as rejected.
                 </AlertDialogDescription>
               </AlertDialogHeader>

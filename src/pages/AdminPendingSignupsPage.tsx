@@ -111,6 +111,7 @@ const AdminPendingSignupsPage = () => {
     if (!selectedUser) return;
     
     try {
+      // We should only update the profiles table status, not attempt to modify the auth.users table
       const { error } = await supabase
         .from('profiles')
         .update({ status: 'approved' })

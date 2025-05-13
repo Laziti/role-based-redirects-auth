@@ -78,13 +78,43 @@ const AccountInfo = ({ listings }: AccountInfoProps) => {
           
         if (error) throw error;
         
-        // Convert the JSON listing_limit to the expected type
-        const listingLimit = data.listing_limit ? {
-          type: typeof data.listing_limit === 'object' ? 
-            (data.listing_limit.type as string) : 'month',
-          value: typeof data.listing_limit === 'object' ? 
-            (data.listing_limit.value as number) : 5
-        } : { type: 'month', value: 5 };
+        // Safely parse the listing_limit JSON data
+        let listingLimit: ListingLimit | null = null;
+        
+        if (data.listing_limit) {
+          // Handle different possible formats of listing_limit
+          if (typeof data.listing_limit === 'object') {
+            const limitData = data.listing_limit as Record<string, unknown>;
+            
+            if (limitData && 'type' in limitData) {
+              listingLimit = {
+                type: String(limitData.type || 'month'),
+                value: typeof limitData.value === 'number' ? limitData.value : 5
+              };
+            }
+          } else if (typeof data.listing_limit === 'string') {
+            try {
+              const parsed = JSON.parse(data.listing_limit);
+              if (parsed && typeof parsed === 'object') {
+                listingLimit = {
+                  type: String(parsed.type || 'month'),
+                  value: typeof parsed.value === 'number' ? parsed.value : 5
+                };
+              }
+            } catch (e) {
+              console.error('Error parsing listing_limit string:', e);
+              listingLimit = { type: 'month', value: 5 };
+            }
+          }
+          
+          // Fallback to default if parsing failed
+          if (!listingLimit) {
+            listingLimit = { type: 'month', value: 5 };
+          }
+        } else {
+          // Default value if listing_limit is null
+          listingLimit = { type: 'month', value: 5 };
+        }
         
         setProfile({
           first_name: data.first_name,

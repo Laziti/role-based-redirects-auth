@@ -1,13 +1,9 @@
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  LayoutDashboard, 
-  PlusCircle, 
-  UserCircle, 
-  LogOut 
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Home, PlusCircle, User, List, LogOut } from 'lucide-react';
 
 type AgentSidebarProps = {
   activeTab: string;
@@ -15,53 +11,62 @@ type AgentSidebarProps = {
 };
 
 const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
-  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
 
-  const navItems = [
-    { id: 'listings', label: 'My Listings', icon: LayoutDashboard },
-    { id: 'create', label: 'Create New Listing', icon: PlusCircle },
-    { id: 'account', label: 'Account Info', icon: UserCircle },
+  const menuItems = [
+    { 
+      id: 'listings', 
+      label: 'My Listings', 
+      icon: <List className="mr-2 h-4 w-4" />,
+      action: () => setActiveTab('listings') 
+    },
+    { 
+      id: 'create', 
+      label: 'Create New', 
+      icon: <PlusCircle className="mr-2 h-4 w-4" />,
+      action: () => setActiveTab('create') 
+    },
+    { 
+      id: 'account', 
+      label: 'Account Info', 
+      icon: <User className="mr-2 h-4 w-4" />,
+      action: () => setActiveTab('account') 
+    }
   ];
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 h-screen sticky top-0 hidden md:block">
-      <div className="flex flex-col h-full">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Agent Portal</h2>
-          <p className="text-sm text-gray-500 mt-1 truncate">
-            {user?.email}
-          </p>
+    <div className="w-64 bg-white h-full flex-shrink-0 border-r hidden md:block">
+      <div className="p-6">
+        <div className="flex items-center mb-8">
+          <Home className="h-5 w-5 mr-2 text-primary" />
+          <h2 className="text-xl font-semibold">Agent Portal</h2>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => (
-            <button
+        <nav className="space-y-1">
+          {menuItems.map(item => (
+            <Button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={cn(
-                "flex items-center w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                activeTab === item.id
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              )}
+              variant={activeTab === item.id ? "default" : "ghost"}
+              className="w-full justify-start text-left"
+              onClick={item.action}
             >
-              <item.icon className="h-5 w-5 mr-2" />
+              {item.icon}
               {item.label}
-            </button>
+            </Button>
           ))}
-        </nav>
-        
-        <div className="p-4 border-t border-gray-200">
-          <button
+          
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-left text-red-500 hover:text-red-700 hover:bg-red-50"
             onClick={signOut}
-            className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
           >
-            <LogOut className="h-5 w-5 mr-2" />
-            Logout
-          </button>
-        </div>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </nav>
       </div>
-    </aside>
+    </div>
   );
 };
 

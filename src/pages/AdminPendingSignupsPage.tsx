@@ -21,7 +21,16 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, ExternalLink, Eye } from 'lucide-react';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose
+} from '@/components/ui/dialog';
 
 interface UserData {
   id: string;
@@ -42,6 +51,8 @@ const AdminPendingSignupsPage = () => {
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [showUserDetails, setShowUserDetails] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -133,9 +144,9 @@ const AdminPendingSignupsPage = () => {
       // Remove the approved user from the list and show success message
       setPendingUsers(prev => prev.filter(user => user.id !== userId));
       toast.success('User approved successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving user:', error);
-      toast.error('Error approving user');
+      toast.error(`Error approving user: ${error.message}`);
     } finally {
       setApproving(null);
     }
@@ -144,7 +155,15 @@ const AdminPendingSignupsPage = () => {
   const handleRejectUser = async (userId: string) => {
     setRejecting(userId);
     try {
-      // Delete the user's profile (this will cascade to auth.users due to references)
+      // Delete the user role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (roleError) throw roleError;
+
+      // Delete the user's profile
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -155,9 +174,9 @@ const AdminPendingSignupsPage = () => {
       // Remove from state
       setPendingUsers(prev => prev.filter(user => user.id !== userId));
       toast.success('User rejected and removed');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting user:', error);
-      toast.error('Error rejecting user');
+      toast.error(`Error rejecting user: ${error.message}`);
     } finally {
       setRejecting(null);
     }
@@ -170,6 +189,11 @@ const AdminPendingSignupsPage = () => {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const showUserDetailsModal = (user: UserData) => {
+    setSelectedUser(user);
+    setShowUserDetails(true);
   };
 
   return (
@@ -237,10 +261,19 @@ const AdminPendingSignupsPage = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => showUserDetailsModal(user)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" /> Details
+                          </Button>
+                          
                           <Button 
                             onClick={() => handleApproveUser(user.id)}
                             disabled={approving === user.id}
                             variant="outline" 
+                            size="sm"
                             className="text-green-600"
                           >
                             {approving === user.id ? (
@@ -255,6 +288,7 @@ const AdminPendingSignupsPage = () => {
                             <AlertDialogTrigger asChild>
                               <Button 
                                 variant="outline" 
+                                size="sm"
                                 className="text-red-600"
                               >
                                 <XCircle className="h-4 w-4 mr-1" />
@@ -293,6 +327,129 @@ const AdminPendingSignupsPage = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* User Details Dialog */}
+      <Dialog open={showUserDetails} onOpenChange={setShowUserDetails}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Complete information about the user
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Full Name</h3>
+                  <p className="text-base">
+                    {selectedUser.profile?.first_name || ''} {selectedUser.profile?.last_name || ''}
+                    {!selectedUser.profile?.first_name && !selectedUser.profile?.last_name && 'Not provided'}
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                  <p className="text-base">{selectedUser.email}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Phone</h3>
+                  <p className="text-base">{selectedUser.profile?.phone_number || 'Not provided'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Career</h3>
+                  <p className="text-base">{selectedUser.profile?.career || 'Not provided'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Signup Date</h3>
+                  <p className="text-base">{formatDate(selectedUser.profile?.updated_at || '')}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Status</h3>
+                  <p className="text-base capitalize">{selectedUser.profile?.status || 'Unknown'}</p>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Payment Receipt</h3>
+                {selectedUser.profile?.payment_receipt_url ? (
+                  <div className="space-y-2">
+                    <div className="border rounded p-2">
+                      <a
+                        href={selectedUser.profile.payment_receipt_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 flex items-center"
+                      >
+                        View Receipt <ExternalLink className="ml-1 h-4 w-4" />
+                      </a>
+                    </div>
+                    {selectedUser.profile.payment_receipt_url.endsWith('.jpg') || 
+                     selectedUser.profile.payment_receipt_url.endsWith('.jpeg') || 
+                     selectedUser.profile.payment_receipt_url.endsWith('.png') ? (
+                      <div className="border rounded p-2">
+                        <img 
+                          src={selectedUser.profile.payment_receipt_url} 
+                          alt="Payment Receipt" 
+                          className="max-h-48 mx-auto"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-base text-gray-500">No payment receipt uploaded</p>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
+            <div className="flex gap-2">
+              <Button 
+                variant="destructive"
+                onClick={() => {
+                  if (selectedUser) {
+                    handleRejectUser(selectedUser.id);
+                    setShowUserDetails(false);
+                  }
+                }}
+                disabled={selectedUser ? rejecting === selectedUser.id : false}
+              >
+                {selectedUser && rejecting === selectedUser.id && (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                )}
+                Reject User
+              </Button>
+              <Button 
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  if (selectedUser) {
+                    handleApproveUser(selectedUser.id);
+                    setShowUserDetails(false);
+                  }
+                }}
+                disabled={selectedUser ? approving === selectedUser.id : false}
+              >
+                {selectedUser && approving === selectedUser.id && (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                )}
+                Approve User
+              </Button>
+            </div>
+            <DialogClose asChild>
+              <Button variant="outline" type="button">
+                Close
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

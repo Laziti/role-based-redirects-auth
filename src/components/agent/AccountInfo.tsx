@@ -33,12 +33,17 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+interface ListingLimit {
+  type: string;
+  value?: number;
+}
+
 interface UserProfile {
   first_name: string | null;
   last_name: string | null;
   phone_number: string | null;
   career: string | null;
-  listing_limit: { type: string; value?: number } | null;
+  listing_limit: ListingLimit | null;
 }
 
 interface AccountInfoProps {
@@ -73,7 +78,22 @@ const AccountInfo = ({ listings }: AccountInfoProps) => {
           
         if (error) throw error;
         
-        setProfile(data);
+        // Convert the JSON listing_limit to the expected type
+        const listingLimit = data.listing_limit ? {
+          type: typeof data.listing_limit === 'object' ? 
+            (data.listing_limit.type as string) : 'month',
+          value: typeof data.listing_limit === 'object' ? 
+            (data.listing_limit.value as number) : 5
+        } : { type: 'month', value: 5 };
+        
+        setProfile({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          phone_number: data.phone_number,
+          career: data.career,
+          listing_limit: listingLimit
+        });
+        
         form.reset({
           phone_number: data.phone_number || '',
           career: data.career || '',

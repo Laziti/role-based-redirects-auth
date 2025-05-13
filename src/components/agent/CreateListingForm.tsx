@@ -34,6 +34,11 @@ const listingSchema = z.object({
 
 type ListingFormValues = z.infer<typeof listingSchema>;
 
+interface ListingLimit {
+  type: string;
+  value?: number;
+}
+
 type CreateListingFormProps = {
   onSuccess: () => void;
 };
@@ -45,7 +50,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
   const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
   const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [userListingLimit, setUserListingLimit] = useState<{type: string, value?: number} | null>(null);
+  const [userListingLimit, setUserListingLimit] = useState<ListingLimit | null>(null);
   const [currentListingCount, setCurrentListingCount] = useState(0);
 
   const form = useForm<ListingFormValues>({
@@ -76,36 +81,30 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
 
         if (profileError) throw profileError;
         
-        setUserListingLimit(profileData.listing_limit || { type: 'month', value: 5 });
+        // Parse the listing limit from the JSON data
+        let limitData: ListingLimit = { type: 'month', value: 5 };
+        
+        if (profileData.listing_limit) {
+          const rawLimit = profileData.listing_limit;
+          if (typeof rawLimit === 'object' && rawLimit !== null) {
+            limitData = {
+              type: rawLimit.type?.toString() || 'month',
+              value: typeof rawLimit.value === 'number' ? rawLimit.value : 5
+            };
+          }
+        }
+        
+        setUserListingLimit(limitData);
 
         // Count user's current listings based on the limit type
-        const timeFrame = profileData.listing_limit?.type || 'month';
-        let timeConstraint = '';
-        
-        switch(timeFrame) {
-          case 'day':
-            timeConstraint = 'created_at >= now() - interval \'1 day\'';
-            break;
-          case 'week':
-            timeConstraint = 'created_at >= now() - interval \'1 week\'';
-            break;
-          case 'month':
-            timeConstraint = 'created_at >= now() - interval \'1 month\'';
-            break;
-          case 'year':
-            timeConstraint = 'created_at >= now() - interval \'1 year\'';
-            break;
-          case 'unlimited':
-            // No time constraint needed
-            break;
-        }
-
-        if (timeFrame !== 'unlimited') {
+        if (limitData.type !== 'unlimited') {
+          const timeConstraint = getTimeConstraint(limitData.type);
+          
           const { count, error: countError } = await supabase
             .from('listings')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', user.id)
-            .filter('created_at', 'gte', new Date(Date.now() - getLimitTimeInMs(timeFrame)).toISOString());
+            .filter('created_at', 'gte', timeConstraint);
           
           if (countError) throw countError;
           setCurrentListingCount(count || 0);
@@ -118,13 +117,23 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
     fetchUserListingInfo();
   }, [user]);
 
-  const getLimitTimeInMs = (timeFrame: string) => {
+  // Helper function to get time constraint based on limit type
+  const getTimeConstraint = (timeFrame: string): string => {
+    const now = new Date();
     switch(timeFrame) {
-      case 'day': return 24 * 60 * 60 * 1000;
-      case 'week': return 7 * 24 * 60 * 60 * 1000;
-      case 'month': return 30 * 24 * 60 * 60 * 1000;
-      case 'year': return 365 * 24 * 60 * 60 * 1000;
-      default: return 30 * 24 * 60 * 60 * 1000;
+      case 'day':
+        return new Date(now.setHours(0, 0, 0, 0)).toISOString();
+      case 'week': {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+        return new Date(now.setDate(diff)).toISOString();
+      }
+      case 'month':
+        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      case 'year':
+        return new Date(now.getFullYear(), 0, 1).toISOString();
+      default:
+        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     }
   };
 

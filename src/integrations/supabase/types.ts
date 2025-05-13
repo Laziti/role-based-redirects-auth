@@ -11,31 +11,52 @@ export type Database = {
     Tables: {
       listings: {
         Row: {
+          additional_image_urls: string[] | null
           created_at: string
           description: string | null
           id: string
+          location: string | null
+          main_image_url: string | null
+          phone_number: string | null
+          price: number | null
           status: string | null
+          telegram_link: string | null
           title: string
           updated_at: string
           user_id: string | null
+          whatsapp_link: string | null
         }
         Insert: {
+          additional_image_urls?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
+          location?: string | null
+          main_image_url?: string | null
+          phone_number?: string | null
+          price?: number | null
           status?: string | null
+          telegram_link?: string | null
           title: string
           updated_at?: string
           user_id?: string | null
+          whatsapp_link?: string | null
         }
         Update: {
+          additional_image_urls?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
+          location?: string | null
+          main_image_url?: string | null
+          phone_number?: string | null
+          price?: number | null
           status?: string | null
+          telegram_link?: string | null
           title?: string
           updated_at?: string
           user_id?: string | null
+          whatsapp_link?: string | null
         }
         Relationships: [
           {
@@ -112,6 +133,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_auth_users_data: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          email: string
+        }[]
+      }
       has_role: {
         Args: {
           _user_id: string

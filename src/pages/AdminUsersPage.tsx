@@ -42,7 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Filter, X } from 'lucide-react';
+import { Search, Filter, X, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import UserEditModal from '@/components/admin/UserEditModal';
 import UserDetailsModal from '@/components/admin/UserDetailsModal';
@@ -54,6 +54,7 @@ type ListingLimit = {
 
 type User = {
   id: string;
+  email: string;
   first_name: string;
   last_name: string;
   phone_number: string;
@@ -99,7 +100,7 @@ const AdminUsersPage = () => {
       // Get users with role = agent
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id')
+        .select('user_id, role')
         .eq('role', 'agent');
       
       if (rolesError) throw rolesError;
@@ -127,6 +128,12 @@ const AdminUsersPage = () => {
         setLoading(false);
         return;
       }
+
+      // Get emails from auth.users
+      const { data: authUsersData, error: authUsersError } = await supabase
+        .rpc('get_auth_users_data');
+
+      if (authUsersError) throw authUsersError;
       
       // Count listings per user
       const listingCounts = await Promise.all(
@@ -143,6 +150,7 @@ const AdminUsersPage = () => {
       // Combine all data
       const combinedUsers: User[] = profiles.map(profile => {
         const listingData = listingCounts.find(l => l.userId === profile.id);
+        const authUser = authUsersData?.find((u: any) => u.id === profile.id);
         let listingLimit: ListingLimit | undefined = undefined;
 
         if (profile.listing_limit) {
@@ -159,6 +167,7 @@ const AdminUsersPage = () => {
         
         return {
           id: profile.id,
+          email: authUser?.email || '',
           first_name: profile.first_name || '',
           last_name: profile.last_name || '',
           phone_number: profile.phone_number || '',
@@ -193,7 +202,8 @@ const AdminUsersPage = () => {
       filtered = filtered.filter(
         user => 
           `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchLower) || 
-          user.phone_number.toLowerCase().includes(searchLower)
+          user.phone_number?.toLowerCase().includes(searchLower) ||
+          user.email?.toLowerCase().includes(searchLower)
       );
     }
     
@@ -391,7 +401,14 @@ const AdminUsersPage = () => {
                 )}
                 
                 <Button onClick={fetchUsers} size="sm" disabled={loading}>
-                  Refresh
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading
+                    </>
+                  ) : (
+                    'Refresh'
+                  )}
                 </Button>
               </div>
             </div>
@@ -401,7 +418,9 @@ const AdminUsersPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
+                    <TableHead>Career</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center">Listings</TableHead>
                     <TableHead>Created</TableHead>
@@ -412,19 +431,27 @@ const AdminUsersPage = () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                      <TableCell colSpan={9} className="text-center py-8">
+                        <div className="flex justify-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ) : filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center">No users found</TableCell>
+                      <TableCell colSpan={9} className="text-center py-6">No users found</TableCell>
                     </TableRow>
                   ) : (
                     filteredUsers.map(user => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">
-                          {user.first_name} {user.last_name}
+                          {user.first_name && user.last_name 
+                            ? `${user.first_name} ${user.last_name}`
+                            : "No name provided"}
                         </TableCell>
-                        <TableCell>{user.phone_number || 'N/A'}</TableCell>
+                        <TableCell>{user.email || 'No email'}</TableCell>
+                        <TableCell>{user.phone_number || 'No phone'}</TableCell>
+                        <TableCell>{user.career || 'Not specified'}</TableCell>
                         <TableCell>
                           <div className={`px-2 py-1 rounded text-xs inline-block ${
                             user.status === 'approved' 

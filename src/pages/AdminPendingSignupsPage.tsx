@@ -351,7 +351,7 @@ const AdminPendingSignupsPage = () => {
                 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                  <p className="text-base">{selectedUser.email}</p>
+                  <p className="text-base">{selectedUser.email || 'Not provided'}</p>
                 </div>
                 
                 <div>

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Listing {
@@ -82,7 +82,7 @@ const ListingTable = ({ listings, onDelete }: ListingTableProps) => {
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="icon" className="text-red-500" onClick={() => onDelete(listing.id)}>
-                      <Trash2 className="h-4 w-4" />
+                      <Trash className="h-4 w-4" />
                     </Button>
                   </div>
                 </TableCell>

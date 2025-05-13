@@ -11,7 +11,7 @@ import {
   SidebarFooter
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Users, FileCheck, List } from 'lucide-react';
+import { LayoutDashboard, Users, FileCheck, List, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const AdminSidebar = () => {

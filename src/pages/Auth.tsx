@@ -110,7 +110,6 @@ const Auth = () => {
       // Refresh the auth context session
       await refreshSession();
       
-      // No redirect here - useEffect will handle based on user role
       toast({
         title: 'Login Successful',
         description: 'Welcome back!',
@@ -196,7 +195,8 @@ const Auth = () => {
       // Refresh the auth context session
       await refreshSession();
       
-      // Navigate to pending page - useEffect will handle this based on userStatus
+      // Explicitly navigate to pending page
+      navigate('/pending');
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -239,7 +239,7 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-blue-50 p-4">
       <div className="absolute inset-0 overflow-hidden -z-10">
         <div className="absolute top-0 right-0 w-full h-full bg-cover bg-center opacity-10" 
-             style={{ backgroundImage: "url('/placeholder.svg')" }}></div>
+             style={{ backgroundImage: "url('/hero-property.jpg')" }}></div>
       </div>
       
       <motion.div 
@@ -249,17 +249,27 @@ const Auth = () => {
         className="w-full max-w-md"
       >
         <motion.div variants={itemVariants}>
-          <Card className="border-none shadow-xl bg-white/80 backdrop-blur-md rounded-xl">
-            <CardHeader className="space-y-1 pb-2">
-              <CardTitle className="text-center text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-lg rounded-2xl overflow-hidden">
+            <CardHeader className="space-y-1 pb-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
+              <CardTitle className="text-center text-2xl font-bold">
                 Real Estate Portal
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6 pt-6">
               <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="login" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Login</TabsTrigger>
-                  <TabsTrigger value="signup" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Sign Up</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+                  <TabsTrigger 
+                    value="login" 
+                    className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm rounded-md"
+                  >
+                    Login
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="signup" 
+                    className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm rounded-md"
+                  >
+                    Sign Up
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="login" className="pt-2">
@@ -278,7 +288,11 @@ const Auth = () => {
                             <FormItem>
                               <FormLabel>Email</FormLabel>
                               <FormControl>
-                                <Input placeholder="name@example.com" {...field} />
+                                <Input 
+                                  placeholder="name@example.com" 
+                                  {...field} 
+                                  className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -292,14 +306,19 @@ const Auth = () => {
                             <FormItem>
                               <FormLabel>Password</FormLabel>
                               <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
+                                <Input 
+                                  type="password" 
+                                  placeholder="••••••••" 
+                                  {...field} 
+                                  className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
                         
-                        <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-300" disabled={isLoading}>
+                        <Button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-indigo-600/20" disabled={isLoading}>
                           {isLoading ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -329,7 +348,11 @@ const Auth = () => {
                               <FormItem>
                                 <FormLabel>First Name</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="John" {...field} />
+                                  <Input 
+                                    placeholder="John" 
+                                    {...field} 
+                                    className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -343,7 +366,11 @@ const Auth = () => {
                               <FormItem>
                                 <FormLabel>Last Name</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="Doe" {...field} />
+                                  <Input 
+                                    placeholder="Doe" 
+                                    {...field} 
+                                    className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -358,7 +385,11 @@ const Auth = () => {
                             <FormItem>
                               <FormLabel>Email</FormLabel>
                               <FormControl>
-                                <Input placeholder="name@example.com" {...field} />
+                                <Input 
+                                  placeholder="name@example.com" 
+                                  {...field} 
+                                  className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -372,7 +403,11 @@ const Auth = () => {
                             <FormItem>
                               <FormLabel>Phone Number</FormLabel>
                               <FormControl>
-                                <Input placeholder="+1 (555) 000-0000" {...field} />
+                                <Input 
+                                  placeholder="+1 (555) 000-0000" 
+                                  {...field} 
+                                  className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -386,7 +421,11 @@ const Auth = () => {
                             <FormItem>
                               <FormLabel>Career/Profession</FormLabel>
                               <FormControl>
-                                <Input placeholder="Real Estate Agent" {...field} />
+                                <Input 
+                                  placeholder="Real Estate Agent" 
+                                  {...field} 
+                                  className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -400,7 +439,12 @@ const Auth = () => {
                             <FormItem>
                               <FormLabel>Password</FormLabel>
                               <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
+                                <Input 
+                                  type="password" 
+                                  placeholder="••••••••" 
+                                  {...field} 
+                                  className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -414,7 +458,12 @@ const Auth = () => {
                             <FormItem>
                               <FormLabel>Confirm Password</FormLabel>
                               <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
+                                <Input 
+                                  type="password" 
+                                  placeholder="••••••••" 
+                                  {...field} 
+                                  className="bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -428,7 +477,7 @@ const Auth = () => {
                             type="file" 
                             accept="image/*,.pdf" 
                             onChange={handleFileChange}
-                            className="cursor-pointer"
+                            className="cursor-pointer bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
                           />
                           {receiptFile && (
                             <p className="text-sm text-green-600">
@@ -437,7 +486,7 @@ const Auth = () => {
                           )}
                         </div>
                         
-                        <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-300" disabled={isLoading}>
+                        <Button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-indigo-600/20" disabled={isLoading}>
                           {isLoading ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -451,14 +500,14 @@ const Auth = () => {
                 </TabsContent>
               </Tabs>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-2 pb-6">
+            <CardFooter className="flex flex-col space-y-2 p-6 pt-0 bg-gradient-to-b from-transparent to-gray-50 dark:to-gray-900/20">
               <div className="text-center text-sm text-gray-500">
                 {activeTab === 'login' ? (
                   <p>
                     Don't have an account?{' '}
                     <button
                       type="button"
-                      className="text-blue-600 hover:underline font-medium"
+                      className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
                       onClick={() => setActiveTab('signup')}
                     >
                       Sign up
@@ -469,7 +518,7 @@ const Auth = () => {
                     Already have an account?{' '}
                     <button
                       type="button"
-                      className="text-blue-600 hover:underline font-medium"
+                      className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
                       onClick={() => setActiveTab('login')}
                     >
                       Log in

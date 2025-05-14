@@ -38,18 +38,18 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
   ];
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-gradient-to-b from-white to-blue-50">
-      <div className="p-6 border-b border-slate-200">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
             <Building className="h-6 w-6" />
           </div>
-          <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">Agent Portal</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Agent Portal</h2>
         </div>
       </div>
       
       <div className="p-4 flex-1">
-        <nav className="space-y-2">
+        <nav className="space-y-1">
           {menuItems.map((item, index) => (
             <motion.div 
               key={item.id}
@@ -61,8 +61,8 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
                 variant={activeTab === item.id ? "default" : "ghost"}
                 className={`w-full justify-start text-left ${
                   activeTab === item.id ? 
-                  "bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800" : 
-                  "hover:bg-blue-50 text-slate-700"
+                  "bg-gradient-to-r from-indigo-600 to-blue-500 shadow-md shadow-indigo-500/20" : 
+                  "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
                 }`}
                 onClick={item.action}
               >
@@ -76,22 +76,22 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
         </nav>
       </div>
       
-      <div className="mt-auto p-4 border-t border-slate-200">
-        <div className="p-4 mb-4 rounded-xl bg-blue-50 border border-blue-100">
+      <div className="mt-auto p-5 border-t border-gray-200 dark:border-gray-800">
+        <div className="p-4 mb-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="flex items-center space-x-3 mb-2">
-            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold">
+            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20">
               {user?.email?.charAt(0).toUpperCase() || 'A'}
             </div>
             <div className="overflow-hidden">
-              <p className="font-medium truncate text-slate-900">{user?.email}</p>
-              <p className="text-sm text-blue-700">Agent</p>
+              <p className="font-medium truncate text-gray-900 dark:text-white">{user?.email}</p>
+              <p className="text-sm text-indigo-600 dark:text-indigo-400">Agent</p>
             </div>
           </div>
         </div>
         
         <Button
           variant="outline"
-          className="w-full justify-start text-left border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700"
+          className="w-full justify-start text-left border-gray-300 dark:border-gray-700 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
           onClick={signOut}
         >
           <LogOut className="h-4 w-4 mr-3" />
@@ -103,17 +103,17 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
 
   // Mobile bottom navigation
   const MobileNav = () => (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-2 px-4 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-2 px-4 md:hidden z-10">
       <div className="flex justify-around items-center">
         {menuItems.map((item) => (
           <button
             key={item.id}
-            className={`flex flex-col items-center p-2 ${
-              activeTab === item.id ? 'text-blue-600' : 'text-slate-500'
+            className={`flex flex-col items-center p-2 rounded-lg ${
+              activeTab === item.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'
             }`}
             onClick={item.action}
           >
-            <div className={`p-1 rounded-lg ${activeTab === item.id ? 'bg-blue-100' : ''}`}>
+            <div className={`p-1 rounded-lg ${activeTab === item.id ? 'bg-indigo-100 dark:bg-indigo-900/50' : ''}`}>
               {item.icon}
             </div>
             <span className="text-xs mt-1">{item.label}</span>
@@ -135,23 +135,23 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className="w-72 h-full shadow-lg border-r border-slate-200 flex-shrink-0 hidden md:block overflow-hidden">
+      <div className="w-72 h-full shadow-lg border-r border-gray-200 dark:border-gray-800 flex-shrink-0 hidden md:block overflow-hidden">
         <SidebarContent />
       </div>
       
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-200 p-4 z-10">
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 z-10">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
               <Building className="h-5 w-5" />
             </div>
-            <h2 className="font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">Agent Portal</h2>
+            <h2 className="font-bold text-gray-900 dark:text-white">Agent Portal</h2>
           </div>
           
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-slate-700">
+              <Button variant="ghost" size="icon" className="text-gray-700 dark:text-gray-300">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle Menu</span>
               </Button>

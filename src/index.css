@@ -35,14 +35,14 @@
 
     --radius: 0.8rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 224.3 76.3% 48%;
   }
 
   .dark {
@@ -74,14 +74,14 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 222.2 47.4% 11.2%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 224.3 76.3% 48%;
   }
 }
 
@@ -91,26 +91,26 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-slate-100;
+    @apply bg-slate-100 dark:bg-slate-800;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 rounded-full;
+    @apply bg-slate-300 dark:bg-slate-600 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400;
+    @apply bg-slate-400 dark:bg-slate-500;
   }
 
   /* Animation utilities */
@@ -132,5 +132,27 @@
 
   .animate-pulse-slow {
     animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Glass Effect */
+  .glass-card {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border border-white/20 dark:border-gray-800/30 shadow-xl;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-600;
+  }
+
+  .gradient-bg {
+    @apply bg-gradient-to-r from-indigo-600 to-blue-600;
+  }
+
+  .gradient-btn {
+    @apply bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white transition-all duration-300;
+  }
+
+  /* Card hover effects */
+  .hover-lift {
+    @apply transition-all duration-300 hover:translate-y-[-5px] hover:shadow-lg;
   }
 }

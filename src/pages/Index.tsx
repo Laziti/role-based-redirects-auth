@@ -3,12 +3,13 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowRight, Building, CheckCircle, Star, Users } from 'lucide-react';
+import { ArrowRight, Building, CheckCircle, Star, Users, LogIn, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const { user, userRole, userStatus, signOut } = useAuth();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   // Redirect based on role
   useEffect(() => {
@@ -24,15 +25,113 @@ const Index = () => {
   }, [user, userRole, userStatus, navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-[var(--portal-bg)] to-[var(--portal-card-bg)] text-[var(--portal-text)] overflow-hidden">
+      {/* Header */}
+      <header className="relative z-10 py-6">
+        <div className="container mx-auto px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-10 w-10 bg-[var(--portal-accent)] rounded-lg flex items-center justify-center shadow-lg shadow-[var(--portal-accent-glow)]">
+              <Building className="h-6 w-6 text-black" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-[var(--portal-text)] to-[var(--portal-accent)] bg-clip-text text-transparent">Estate Portal</span>
+          </div>
+          
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#features" className="text-[var(--portal-text-secondary)] hover:text-[var(--portal-accent)] transition-colors">Features</a>
+            <a href="#pricing" className="text-[var(--portal-text-secondary)] hover:text-[var(--portal-accent)] transition-colors">Pricing</a>
+            <a href="#testimonials" className="text-[var(--portal-text-secondary)] hover:text-[var(--portal-accent)] transition-colors">Testimonials</a>
+            
+            {!user ? (
+              <Link to="/auth">
+                <Button className="bg-[var(--portal-accent)] text-black hover:bg-[var(--portal-accent)]/90 transition-all flex items-center gap-2">
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </Button>
+              </Link>
+            ) : (
+              <Button 
+                onClick={() => userRole === 'super_admin' ? navigate('/admin') : navigate('/agent')}
+                className="bg-[var(--portal-accent)] text-black hover:bg-[var(--portal-accent)]/90 transition-all"
+              >
+                Dashboard
+              </Button>
+            )}
+          </div>
+          
+          {/* Mobile menu button */}
+          <button 
+            className="md:hidden text-[var(--portal-text)]"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X /> : <Menu />}
+          </button>
+        </div>
+        
+        {/* Mobile Navigation */}
+        {mobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute top-20 left-0 right-0 bg-[var(--portal-card-bg)] border-t border-b border-[var(--portal-border)] py-4 px-6 md:hidden"
+          >
+            <div className="flex flex-col gap-4">
+              <a 
+                href="#features" 
+                className="text-[var(--portal-text-secondary)] hover:text-[var(--portal-accent)] transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Features
+              </a>
+              <a 
+                href="#pricing" 
+                className="text-[var(--portal-text-secondary)] hover:text-[var(--portal-accent)] transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Pricing
+              </a>
+              <a 
+                href="#testimonials" 
+                className="text-[var(--portal-text-secondary)] hover:text-[var(--portal-accent)] transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Testimonials
+              </a>
+              
+              {!user ? (
+                <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                  <Button 
+                    className="bg-[var(--portal-accent)] text-black hover:bg-[var(--portal-accent)]/90 transition-all w-full flex items-center justify-center gap-2"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Sign In
+                  </Button>
+                </Link>
+              ) : (
+                <Button 
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    userRole === 'super_admin' ? navigate('/admin') : navigate('/agent');
+                  }}
+                  className="bg-[var(--portal-accent)] text-black hover:bg-[var(--portal-accent)]/90 transition-all w-full"
+                >
+                  Dashboard
+                </Button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </header>
+      
       {/* Hero Section */}
-      <section className="min-h-screen relative flex items-center">
+      <section className="min-h-screen relative flex items-center pt-16">
         {/* Background elements */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute w-[800px] h-[800px] rounded-full bg-blue-100/50 -top-[400px] -right-[200px]" />
-          <div className="absolute w-[600px] h-[600px] rounded-full bg-indigo-100/50 -bottom-[300px] -left-[200px]" />
+          <div className="absolute w-[800px] h-[800px] rounded-full bg-[var(--portal-accent)]/5 -top-[400px] -right-[200px]" />
+          <div className="absolute w-[600px] h-[600px] rounded-full bg-[var(--portal-accent)]/5 -bottom-[300px] -left-[200px]" />
           <motion.div 
-            className="absolute w-12 h-12 rounded-xl bg-blue-200/30 backdrop-blur-sm top-20 right-[20%]"
+            className="absolute w-12 h-12 rounded-xl bg-[var(--portal-accent)]/10 backdrop-blur-sm top-20 right-[20%]"
             animate={{ 
               y: [0, 20, 0],
               rotate: [0, 5, 0]
@@ -40,7 +139,7 @@ const Index = () => {
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.div 
-            className="absolute w-20 h-20 rounded-full bg-indigo-200/30 backdrop-blur-sm bottom-40 left-[15%]"
+            className="absolute w-20 h-20 rounded-full bg-[var(--portal-accent)]/10 backdrop-blur-sm bottom-40 left-[15%]"
             animate={{ 
               y: [0, -30, 0],
               x: [0, 15, 0]
@@ -58,7 +157,7 @@ const Index = () => {
               transition={{ duration: 0.8 }}
             >
               <motion.div 
-                className="inline-block mb-4 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-medium text-sm"
+                className="inline-block mb-4 px-4 py-1.5 rounded-full bg-[var(--portal-accent)]/10 border border-[var(--portal-accent)]/20 text-[var(--portal-accent)] font-medium text-sm"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
@@ -67,16 +166,16 @@ const Index = () => {
               </motion.div>
               
               <motion.h1 
-                className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 mb-6"
+                className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
               >
-                Elevate Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-700">Real Estate</span> Business
+                Elevate Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--portal-accent)] to-[var(--portal-accent)]/70">Real Estate</span> Business
               </motion.h1>
               
               <motion.p 
-                className="text-lg md:text-xl text-slate-600 mb-8 max-w-2xl mx-auto lg:mx-0"
+                className="text-lg md:text-xl text-[var(--portal-text-secondary)] mb-8 max-w-2xl mx-auto lg:mx-0"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 }}
@@ -94,7 +193,7 @@ const Index = () => {
                   <Link to="/auth">
                     <Button 
                       size="lg" 
-                      className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white px-8 rounded-lg shadow-lg hover:shadow-blue-500/20 transition-all duration-300"
+                      className="bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 text-black px-8 rounded-lg shadow-lg hover:shadow-[var(--portal-accent-glow)] transition-all duration-300"
                     >
                       Get Started Now
                       <ArrowRight className="ml-2 h-5 w-5" />
@@ -103,7 +202,7 @@ const Index = () => {
                 ) : (
                   <Button 
                     onClick={() => userRole === 'super_admin' ? navigate('/admin') : navigate('/agent')}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white px-8 rounded-lg shadow-lg hover:shadow-blue-500/20 transition-all duration-300"
+                    className="bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 text-black px-8 rounded-lg shadow-lg hover:shadow-[var(--portal-accent-glow)] transition-all duration-300"
                   >
                     Go to Dashboard
                   </Button>
@@ -111,17 +210,17 @@ const Index = () => {
               </motion.div>
               
               <motion.div 
-                className="flex items-center justify-center lg:justify-start gap-8 text-slate-700"
+                className="flex items-center justify-center lg:justify-start gap-8 text-[var(--portal-text-secondary)]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 1, delay: 1 }}
               >
                 <div className="flex items-center">
-                  <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+                  <CheckCircle className="h-5 w-5 text-[var(--portal-accent)] mr-2" />
                   <span>5000 birr/month</span>
                 </div>
                 <div className="flex items-center">
-                  <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+                  <CheckCircle className="h-5 w-5 text-[var(--portal-accent)] mr-2" />
                   <span>100 listings/month</span>
                 </div>
               </motion.div>
@@ -134,8 +233,8 @@ const Index = () => {
               transition={{ duration: 0.8, delay: 0.4 }}
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 blur-xl opacity-20 rounded-2xl transform rotate-3"></div>
-                <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--portal-accent)]/40 to-[var(--portal-accent)]/20 blur-xl opacity-30 rounded-2xl transform rotate-3"></div>
+                <div className="relative bg-[var(--portal-card-bg)] rounded-2xl shadow-xl overflow-hidden border border-[var(--portal-border)]">
                   <div className="aspect-[4/3]">
                     <img 
                       src="/hero-property.jpg" 
@@ -145,28 +244,28 @@ const Index = () => {
                   </div>
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xl font-bold text-slate-900">Luxury Villa</h3>
+                      <h3 className="text-xl font-bold text-[var(--portal-text)]">Luxury Villa</h3>
                       <div className="flex items-center">
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                        <Star className="h-4 w-4 text-[var(--portal-accent)] fill-[var(--portal-accent)]" />
+                        <Star className="h-4 w-4 text-[var(--portal-accent)] fill-[var(--portal-accent)]" />
+                        <Star className="h-4 w-4 text-[var(--portal-accent)] fill-[var(--portal-accent)]" />
+                        <Star className="h-4 w-4 text-[var(--portal-accent)] fill-[var(--portal-accent)]" />
+                        <Star className="h-4 w-4 text-[var(--portal-accent)] fill-[var(--portal-accent)]" />
                       </div>
                     </div>
-                    <p className="text-slate-500 mb-4">Elegant 5 bedroom villa with swimming pool and garden</p>
+                    <p className="text-[var(--portal-text-secondary)] mb-4">Elegant 5 bedroom villa with swimming pool and garden</p>
                     <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-blue-600">$450,000</p>
+                      <p className="text-2xl font-bold text-[var(--portal-accent)]">$450,000</p>
                       <div className="flex gap-2">
                         <motion.button 
-                          className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                          className="p-2 bg-[var(--portal-accent)]/10 text-[var(--portal-accent)] rounded-lg hover:bg-[var(--portal-accent)]/20"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
                           <Users className="h-5 w-5" />
                         </motion.button>
                         <motion.button 
-                          className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                          className="p-2 bg-[var(--portal-accent)]/10 text-[var(--portal-accent)] rounded-lg hover:bg-[var(--portal-accent)]/20"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
@@ -178,17 +277,17 @@ const Index = () => {
                 </div>
                 
                 <motion.div 
-                  className="absolute -bottom-6 -left-6 bg-white p-4 rounded-lg shadow-lg border border-slate-100 flex items-center gap-3"
+                  className="absolute -bottom-6 -left-6 bg-[var(--portal-card-bg)] p-4 rounded-lg shadow-lg border border-[var(--portal-border)] flex items-center gap-3"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.8 }}
                 >
-                  <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+                  <div className="h-12 w-12 rounded-full bg-[var(--portal-accent)] flex items-center justify-center text-black font-bold">
                     JD
                   </div>
                   <div>
-                    <p className="font-medium text-slate-900">John Doe</p>
-                    <p className="text-sm text-slate-500">Real Estate Agent</p>
+                    <p className="font-medium text-[var(--portal-text)]">John Doe</p>
+                    <p className="text-sm text-[var(--portal-text-secondary)]">Real Estate Agent</p>
                   </div>
                 </motion.div>
               </div>

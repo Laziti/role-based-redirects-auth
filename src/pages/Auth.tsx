@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '@/contexts/AuthContext';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
-import { User, LogIn, UserPlus, Upload } from 'lucide-react';
+import { User, LogIn, UserPlus, Upload, Check, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,8 +55,13 @@ const Auth = () => {
   const onLoginSubmit = async (data) => {
     setLoading(true);
     try {
-      await signIn(data.email, data.password);
-      // Navigation is handled in AuthContext after successful login
+      const { error } = await signIn(data.email, data.password);
+      if (error) {
+        toast.error(error.message || 'Failed to sign in');
+      } else {
+        toast.success('Signed in successfully');
+        // Navigation is handled in AuthContext after successful login
+      }
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Failed to sign in. Please check your credentials and try again.');
@@ -73,11 +78,14 @@ const Auth = () => {
 
     setLoading(true);
     try {
-      // The signUp function in AuthContext expects email and password as separate arguments
-      await signUp(data.email, data.password);
+      const { error } = await signUp(data.email, data.password);
       
-      toast.success('Signup successful! Please wait for admin approval.');
-      navigate('/pending');
+      if (error) {
+        toast.error(error.message || 'Failed to sign up');
+      } else {
+        toast.success('Signup successful! Please wait for admin approval.');
+        navigate('/pending');
+      }
     } catch (error) {
       console.error('Signup error:', error);
       toast.error('Failed to sign up. Please try again.');
@@ -170,12 +178,12 @@ const Auth = () => {
       {/* Right panel (Authentication) */}
       <div className="flex-1 flex items-center justify-center px-4 py-12 md:py-0">
         <motion.div
-          variants={containerAnimation}
-          initial="hidden"
-          animate="visible"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
           className="w-full max-w-md"
         >
-          <motion.div variants={itemAnimation} className="mb-8 text-center">
+          <motion.div className="mb-8 text-center">
             <h2 className="text-3xl font-bold text-[var(--portal-accent)]">
               {authType === 'login' ? 'Welcome Back' : 'Create Account'}
             </h2>
@@ -185,179 +193,167 @@ const Auth = () => {
           </motion.div>
 
           <Tabs value={authType} onValueChange={setAuthType} className="w-full">
-            <motion.div variants={itemAnimation}>
-              <TabsList className="grid w-full grid-cols-2 mb-8">
-                <TabsTrigger value="login" className="data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-black">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Login
-                </TabsTrigger>
-                <TabsTrigger value="signup" className="data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-black">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Sign Up
-                </TabsTrigger>
-              </TabsList>
-            </motion.div>
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+              <TabsTrigger value="login" className="data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-black">
+                <LogIn className="mr-2 h-4 w-4" />
+                Login
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-black">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Sign Up
+              </TabsTrigger>
+            </TabsList>
 
-            <AnimatePresence mode="wait">
-              <TabsContent value="login" className="mt-0">
-                <motion.form
-                  variants={containerAnimation}
-                  initial="hidden"
-                  animate="visible"
-                  onSubmit={loginForm.handleSubmit(onLoginSubmit)}
-                  className="space-y-6"
+            <TabsContent value="login" className="mt-0">
+              <form
+                onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+                className="space-y-6"
+                key="login-form"
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="you@example.com" 
+                    className="portal-input"
+                    {...loginForm.register('email')} 
+                  />
+                  {loginForm.formState.errors.email && (
+                    <p className="text-red-500 text-sm">{loginForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    placeholder="••••••••" 
+                    className="portal-input"
+                    {...loginForm.register('password')} 
+                  />
+                  {loginForm.formState.errors.password && (
+                    <p className="text-red-500 text-sm">{loginForm.formState.errors.password.message}</p>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="portal-button w-full"
+                  disabled={loading}
                 >
-                  <motion.div variants={itemAnimation} className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      type="email" 
-                      placeholder="you@example.com" 
-                      className="portal-input"
-                      {...loginForm.register('email')} 
-                    />
-                    {loginForm.formState.errors.email && (
-                      <p className="text-red-500 text-sm">{loginForm.formState.errors.email.message}</p>
-                    )}
-                  </motion.div>
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </Button>
+              </form>
+            </TabsContent>
 
-                  <motion.div variants={itemAnimation} className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input 
-                      id="password" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      className="portal-input"
-                      {...loginForm.register('password')} 
-                    />
-                    {loginForm.formState.errors.password && (
-                      <p className="text-red-500 text-sm">{loginForm.formState.errors.password.message}</p>
-                    )}
-                  </motion.div>
+            <TabsContent value="signup" className="mt-0">
+              <form
+                onSubmit={signupForm.handleSubmit(onSignupSubmit)}
+                className="space-y-4"
+                key="signup-form"
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input 
+                    id="fullName" 
+                    placeholder="John Doe" 
+                    className="portal-input"
+                    {...signupForm.register('fullName')} 
+                  />
+                  {signupForm.formState.errors.fullName && (
+                    <p className="text-red-500 text-sm">{signupForm.formState.errors.fullName.message}</p>
+                  )}
+                </div>
 
-                  <motion.div variants={itemAnimation}>
-                    <Button 
-                      type="submit" 
-                      className="portal-button w-full"
-                      disabled={loading}
-                    >
-                      {loading ? 'Signing in...' : 'Sign In'}
-                    </Button>
-                  </motion.div>
-                </motion.form>
-              </TabsContent>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input 
+                    id="phone" 
+                    placeholder="+1234567890" 
+                    className="portal-input"
+                    {...signupForm.register('phone')} 
+                  />
+                  {signupForm.formState.errors.phone && (
+                    <p className="text-red-500 text-sm">{signupForm.formState.errors.phone.message}</p>
+                  )}
+                </div>
 
-              <TabsContent value="signup" className="mt-0">
-                <motion.form
-                  variants={containerAnimation}
-                  initial="hidden"
-                  animate="visible"
-                  onSubmit={signupForm.handleSubmit(onSignupSubmit)}
-                  className="space-y-4"
+                <div className="space-y-2">
+                  <Label htmlFor="career">Career</Label>
+                  <Input 
+                    id="career" 
+                    placeholder="Real Estate Agent" 
+                    className="portal-input"
+                    {...signupForm.register('career')} 
+                  />
+                  {signupForm.formState.errors.career && (
+                    <p className="text-red-500 text-sm">{signupForm.formState.errors.career.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email-signup">Email</Label>
+                  <Input 
+                    id="email-signup" 
+                    type="email" 
+                    placeholder="you@example.com" 
+                    className="portal-input"
+                    {...signupForm.register('email')} 
+                  />
+                  {signupForm.formState.errors.email && (
+                    <p className="text-red-500 text-sm">{signupForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password-signup">Password</Label>
+                  <Input 
+                    id="password-signup" 
+                    type="password" 
+                    placeholder="••••••••" 
+                    className="portal-input"
+                    {...signupForm.register('password')} 
+                  />
+                  {signupForm.formState.errors.password && (
+                    <p className="text-red-500 text-sm">{signupForm.formState.errors.password.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="receipt">Upload Payment Receipt</Label>
+                  <div className="border-2 border-dashed border-[var(--portal-border)] rounded-lg p-4 cursor-pointer hover:border-[var(--portal-accent)] transition-colors">
+                    <label htmlFor="receipt" className="flex flex-col items-center justify-center cursor-pointer">
+                      <Upload className="h-8 w-8 text-[var(--portal-text-secondary)] mb-2" />
+                      <span className="text-sm text-[var(--portal-text-secondary)]">
+                        {receiptFile ? receiptFile.name : 'Click to upload payment proof'}
+                      </span>
+                      <input 
+                        id="receipt" 
+                        type="file" 
+                        accept="image/*,.pdf" 
+                        className="hidden" 
+                        onChange={handleFileChange} 
+                      />
+                    </label>
+                  </div>
+                  {!receiptFile && (
+                    <p className="text-[var(--portal-text-secondary)] text-sm">
+                      Upload proof of payment (5000 birr/month)
+                    </p>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="portal-button w-full" 
+                  disabled={loading}
                 >
-                  <motion.div variants={itemAnimation} className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input 
-                      id="fullName" 
-                      placeholder="John Doe" 
-                      className="portal-input"
-                      {...signupForm.register('fullName')} 
-                    />
-                    {signupForm.formState.errors.fullName && (
-                      <p className="text-red-500 text-sm">{signupForm.formState.errors.fullName.message}</p>
-                    )}
-                  </motion.div>
-
-                  <motion.div variants={itemAnimation} className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input 
-                      id="phone" 
-                      placeholder="+1234567890" 
-                      className="portal-input"
-                      {...signupForm.register('phone')} 
-                    />
-                    {signupForm.formState.errors.phone && (
-                      <p className="text-red-500 text-sm">{signupForm.formState.errors.phone.message}</p>
-                    )}
-                  </motion.div>
-
-                  <motion.div variants={itemAnimation} className="space-y-2">
-                    <Label htmlFor="career">Career</Label>
-                    <Input 
-                      id="career" 
-                      placeholder="Real Estate Agent" 
-                      className="portal-input"
-                      {...signupForm.register('career')} 
-                    />
-                    {signupForm.formState.errors.career && (
-                      <p className="text-red-500 text-sm">{signupForm.formState.errors.career.message}</p>
-                    )}
-                  </motion.div>
-
-                  <motion.div variants={itemAnimation} className="space-y-2">
-                    <Label htmlFor="email-signup">Email</Label>
-                    <Input 
-                      id="email-signup" 
-                      type="email" 
-                      placeholder="you@example.com" 
-                      className="portal-input"
-                      {...signupForm.register('email')} 
-                    />
-                    {signupForm.formState.errors.email && (
-                      <p className="text-red-500 text-sm">{signupForm.formState.errors.email.message}</p>
-                    )}
-                  </motion.div>
-
-                  <motion.div variants={itemAnimation} className="space-y-2">
-                    <Label htmlFor="password-signup">Password</Label>
-                    <Input 
-                      id="password-signup" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      className="portal-input"
-                      {...signupForm.register('password')} 
-                    />
-                    {signupForm.formState.errors.password && (
-                      <p className="text-red-500 text-sm">{signupForm.formState.errors.password.message}</p>
-                    )}
-                  </motion.div>
-
-                  <motion.div variants={itemAnimation} className="space-y-2">
-                    <Label htmlFor="receipt">Upload Payment Receipt</Label>
-                    <div className="border-2 border-dashed border-[var(--portal-border)] rounded-lg p-4 cursor-pointer hover:border-[var(--portal-accent)] transition-colors">
-                      <label htmlFor="receipt" className="flex flex-col items-center justify-center cursor-pointer">
-                        <Upload className="h-8 w-8 text-[var(--portal-text-secondary)] mb-2" />
-                        <span className="text-sm text-[var(--portal-text-secondary)]">
-                          {receiptFile ? receiptFile.name : 'Click to upload payment proof'}
-                        </span>
-                        <input 
-                          id="receipt" 
-                          type="file" 
-                          accept="image/*,.pdf" 
-                          className="hidden" 
-                          onChange={handleFileChange} 
-                        />
-                      </label>
-                    </div>
-                    {!receiptFile && (
-                      <p className="text-[var(--portal-text-secondary)] text-sm">
-                        Upload proof of payment (5000 birr/month)
-                      </p>
-                    )}
-                  </motion.div>
-
-                  <motion.div variants={itemAnimation}>
-                    <Button 
-                      type="submit" 
-                      className="portal-button w-full" 
-                      disabled={loading}
-                    >
-                      {loading ? 'Signing up...' : 'Sign Up'}
-                    </Button>
-                  </motion.div>
-                </motion.form>
-              </TabsContent>
-            </AnimatePresence>
+                  {loading ? 'Signing up...' : 'Sign Up'}
+                </Button>
+              </form>
+            </TabsContent>
           </Tabs>
         </motion.div>
       </div>

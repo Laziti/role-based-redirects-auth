@@ -3,6 +3,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('styles/portal-theme.css');
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -154,5 +156,33 @@
   /* Card hover effects */
   .hover-lift {
     @apply transition-all duration-300 hover:translate-y-[-5px] hover:shadow-lg;
+  }
+  
+  /* New dark theme utilities */
+  .dark-card {
+    @apply bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-xl shadow-md;
+  }
+  
+  .dark-input {
+    @apply bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg px-4 py-2 text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-1 focus:ring-[var(--portal-accent)];
+  }
+  
+  .dark-btn {
+    @apply bg-[var(--portal-accent)] text-black px-4 py-2 rounded-lg hover:bg-[var(--portal-accent)]/90 transition-all;
+  }
+  
+  .shine-effect {
+    @apply relative overflow-hidden;
+  }
+  
+  .shine-effect::after {
+    content: '';
+    @apply absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/10 to-transparent transform skew-x-[-25deg];
+    animation: shine 2s infinite;
+  }
+  
+  @keyframes shine {
+    0% { left: -100%; }
+    100% { left: 150%; }
   }
 }

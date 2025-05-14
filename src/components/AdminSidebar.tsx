@@ -1,19 +1,11 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarHeader, 
-  SidebarMenu, 
-  SidebarMenuItem, 
-  SidebarMenuButton,
-  SidebarFooter
-} from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { LayoutDashboard, Users, FileCheck, List, LogOut, Settings, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import '@/styles/portal-theme.css';
 
 export const AdminSidebar = () => {
   const { signOut, user } = useAuth();
@@ -27,18 +19,18 @@ export const AdminSidebar = () => {
   ];
 
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center p-4 space-x-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+    <div className="w-72 h-screen flex-shrink-0 overflow-auto portal-sidebar">
+      <div className="p-6 border-b border-[var(--portal-border)]">
+        <div className="flex items-center space-x-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-[var(--portal-accent)] flex items-center justify-center text-black shadow-lg">
             <Building className="h-6 w-6" />
           </div>
-          <div className="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Admin Portal</div>
+          <h2 className="text-xl font-bold bg-gradient-to-r from-[var(--portal-text)] to-[var(--portal-accent)] bg-clip-text text-transparent">Admin Portal</h2>
         </div>
-      </SidebarHeader>
+      </div>
       
-      <SidebarContent className="px-2">
-        <SidebarMenu>
+      <div className="p-4">
+        <nav className="space-y-1">
           {menuItems.map((item, index) => (
             <motion.div
               key={index}
@@ -46,48 +38,44 @@ export const AdminSidebar = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: index * 0.1 }}
             >
-              <SidebarMenuItem key={index}>
-                <SidebarMenuButton asChild tooltip={item.label}>
-                  <NavLink 
-                    to={item.path} 
-                    end={item.path === "/admin"}
-                    className={({ isActive }) => 
-                      isActive ? "data-[active=true]" : ""
-                    }
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <NavLink 
+                to={item.path} 
+                end={item.path === "/admin"}
+                className={({ isActive }) => 
+                  `portal-menu-item ${isActive ? 'active' : ''}`
+                }
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </NavLink>
             </motion.div>
           ))}
-        </SidebarMenu>
-      </SidebarContent>
+        </nav>
+      </div>
       
-      <SidebarFooter>
-        <div className="p-4">
-          <div className="flex items-center space-x-3 mb-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center font-medium shadow-md shadow-purple-500/20">
+      <div className="p-4 mt-auto border-t border-[var(--portal-border)]">
+        <div className="p-4 mb-4 rounded-xl bg-[var(--portal-card-bg)] border border-[var(--portal-border)]">
+          <div className="flex items-center space-x-3">
+            <div className="portal-avatar">
               {user?.email?.charAt(0).toUpperCase() || 'A'}
             </div>
             <div className="overflow-hidden">
-              <p className="text-sm font-medium truncate">{user?.email}</p>
-              <p className="text-xs text-indigo-600 dark:text-indigo-400">Super Admin</p>
+              <p className="text-sm font-medium truncate text-[var(--portal-text)]">{user?.email}</p>
+              <p className="text-xs text-[var(--portal-accent)]">Super Admin</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full flex items-center justify-center border-gray-300 dark:border-gray-700 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-            onClick={signOut}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
         </div>
-      </SidebarFooter>
-    </Sidebar>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full flex items-center justify-center border-[var(--portal-border)] text-red-500 hover:bg-red-500/10 hover:text-red-400"
+          onClick={signOut}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </Button>
+      </div>
+    </div>
   );
 };
 

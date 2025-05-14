@@ -9,6 +9,7 @@ import {
   FieldValues,
   FormProvider,
   useFormContext,
+  UseFormReturn,
 } from "react-hook-form"
 
 import { cn } from "@/lib/utils"
@@ -50,7 +51,6 @@ const useFormField = () => {
   }
 
   // If no formContext is found, return a safe fallback to prevent crashes
-  // This will at least allow the UI to render even if functionality is limited
   if (!formContext) {
     console.error("useFormField should be used within <Form>. Rendering with limited functionality.")
     return {

@@ -1,41 +1,82 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { motion } from 'framer-motion';
+import { AlertTriangle, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const PendingApproval = () => {
   const { signOut, user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="bg-white shadow-md rounded-lg max-w-lg w-full p-8 text-center">
-        <div className="mb-6">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-16 w-16 text-yellow-500 mx-auto" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
-            />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Account Pending Approval</h1>
-        <p className="text-gray-600 mb-6">
-          Your account is awaiting approval from an administrator. 
-          You'll be notified once your account has been approved.
-        </p>
-        <button
-          onClick={signOut}
-          className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-blue-50 flex flex-col items-center justify-center p-4">
+      <motion.div 
+        className="bg-white shadow-xl rounded-2xl max-w-md w-full p-8 text-center"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      >
+        <motion.div 
+          className="mb-6 text-yellow-500 mx-auto"
+          initial={{ rotate: 0 }}
+          animate={{ rotate: [0, -5, 0, 5, 0] }}
+          transition={{ duration: 0.5, delay: 0.5 }}
         >
-          Sign Out
-        </button>
-      </div>
+          <AlertTriangle className="h-16 w-16 mx-auto" strokeWidth={1.5} />
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Account Pending Approval</h1>
+          <p className="text-gray-600 mb-8">
+            Your account is awaiting approval from our administrators. 
+            You'll be notified once your account has been approved and you can start using the platform.
+          </p>
+          
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6 text-left">
+            <h3 className="font-medium text-blue-800 mb-2">What happens next?</h3>
+            <ul className="space-y-2 text-blue-700 text-sm">
+              <li className="flex items-start">
+                <span className="inline-block h-5 w-5 rounded-full bg-blue-100 text-blue-800 text-xs flex items-center justify-center mr-2 mt-0.5">1</span>
+                Our admin team will review your application
+              </li>
+              <li className="flex items-start">
+                <span className="inline-block h-5 w-5 rounded-full bg-blue-100 text-blue-800 text-xs flex items-center justify-center mr-2 mt-0.5">2</span>
+                We'll verify your payment receipt
+              </li>
+              <li className="flex items-start">
+                <span className="inline-block h-5 w-5 rounded-full bg-blue-100 text-blue-800 text-xs flex items-center justify-center mr-2 mt-0.5">3</span>
+                Once approved, you'll get full access to your agent dashboard
+              </li>
+            </ul>
+          </div>
+          
+          <motion.div
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button
+              onClick={signOut}
+              className="w-full py-2 px-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg shadow transition-all duration-300 flex items-center justify-center"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </motion.div>
+        </motion.div>
+      </motion.div>
+      
+      <motion.div
+        className="mt-6 text-sm text-gray-500"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.8 }}
+      >
+        Have questions? Contact support at support@realestate.com
+      </motion.div>
     </div>
   );
 };

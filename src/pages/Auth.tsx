@@ -74,6 +74,7 @@ const Auth = () => {
 
     setLoading(true);
     try {
+      // Fixed here: Passing an object with all required properties
       await signUp({
         email: data.email,
         password: data.password,

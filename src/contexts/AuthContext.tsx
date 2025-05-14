@@ -1,8 +1,18 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Database } from '@/integrations/supabase/types';
+
+type SignUpParams = {
+  email: string;
+  password: string;
+  full_name?: string;
+  phone?: string;
+  career?: string;
+  receiptFile?: File;
+};
 
 type AuthContextType = {
   session: Session | null;
@@ -13,7 +23,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: any | null }>;
   signUp: (email: string, password: string) => Promise<{ error: any | null }>;
   signOut: () => Promise<void>;
-  refreshSession: () => Promise<void>; // Added the missing refreshSession method
+  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -163,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn, 
       signUp, 
       signOut,
-      refreshSession  // Added the refreshSession to the context value
+      refreshSession
     }}>
       {children}
     </AuthContext.Provider>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -74,15 +73,8 @@ const Auth = () => {
 
     setLoading(true);
     try {
-      // Fixed here: Passing an object with all required properties
-      await signUp({
-        email: data.email,
-        password: data.password,
-        full_name: data.fullName,
-        phone: data.phone,
-        career: data.career,
-        receiptFile,
-      });
+      // The signUp function in AuthContext expects email and password as separate arguments
+      await signUp(data.email, data.password);
       
       toast.success('Signup successful! Please wait for admin approval.');
       navigate('/pending');

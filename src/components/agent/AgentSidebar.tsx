@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Plus, User, List, LogOut, Menu, BuildingEstate } from 'lucide-react';
+import { Home, Plus, User, List, LogOut, Menu, Building } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { motion } from 'framer-motion';
 
@@ -41,7 +40,7 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
     <div className="flex flex-col h-full">
       <div className="p-6 border-b border-slate-200">
         <div className="flex items-center space-x-3">
-          <BuildingEstate className="h-7 w-7 text-indigo-600" />
+          <Building className="h-7 w-7 text-indigo-600" />
           <h2 className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Agent Portal</h2>
         </div>
       </div>
@@ -133,7 +132,7 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
       <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 p-4 z-10">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <BuildingEstate className="h-6 w-6 text-indigo-600" />
+            <Building className="h-6 w-6 text-indigo-600" />
             <h2 className="text-lg font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Agent Portal</h2>
           </div>
           

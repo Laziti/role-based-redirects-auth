@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { Helmet } from 'react-helmet';
 import { createSlug, formatCurrency, formatDate } from '@/lib/formatters';
 import ImageGallery from '@/components/public/ImageGallery';
-import AgentProfileHeader from '@/components/public/AgentProfileHeader';
 import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -17,6 +16,7 @@ interface Agent {
   career?: string;
   phone_number?: string;
   avatar_url?: string;
+  slug?: string;
 }
 
 interface Listing {
@@ -61,10 +61,10 @@ const ListingDetail = () => {
         
         setListing(listingData);
         
-        // Fetch the agent
+        // Fetch the agent - first try by slug
         const { data: agentData, error: agentError } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name, career, phone_number, avatar_url')
+          .select('id, first_name, last_name, career, phone_number, avatar_url, slug')
           .eq('id', listingData.user_id)
           .eq('status', 'approved')
           .single();
@@ -76,14 +76,32 @@ const ListingDetail = () => {
           return;
         }
         
-        // Verify the agent slug matches
-        const expectedSlug = createSlug(`${agentData.first_name} ${agentData.last_name}`);
-        if (expectedSlug !== agentSlug) {
-          navigate('/not-found');
+        // Check if the agent has a slug and if it matches the URL
+        // If not, verify using the generated slug from name
+        let verifiedSlug = agentSlug;
+        
+        if (agentData.slug && agentData.slug !== agentSlug) {
+          navigate(`/${agentData.slug}/listing/${listingId}`, { replace: true });
           return;
+        } else if (!agentData.slug) {
+          // Generate slug from name
+          const expectedSlug = createSlug(`${agentData.first_name} ${agentData.last_name}`);
+          
+          // Update agent profile with the slug
+          if (expectedSlug === agentSlug) {
+            await supabase
+              .from('profiles')
+              .update({ slug: expectedSlug })
+              .eq('id', agentData.id);
+            
+            verifiedSlug = expectedSlug;
+          } else if (expectedSlug !== agentSlug) {
+            navigate(`/${expectedSlug}/listing/${listingId}`, { replace: true });
+            return;
+          }
         }
         
-        setAgent(agentData);
+        setAgent({...agentData, slug: verifiedSlug});
       } catch (error) {
         console.error('Error fetching listing details:', error);
         toast.error('Error loading listing data');
@@ -265,7 +283,7 @@ const ListingDetail = () => {
                 </div>
                 
                 <Link 
-                  to={`/${agentSlug}`}
+                  to={`/${agent.slug || agentSlug}`}
                   className="flex items-center justify-center w-full text-gold-500 hover:text-gold-600"
                 >
                   <span>View all listings</span>

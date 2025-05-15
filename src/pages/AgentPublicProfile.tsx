@@ -4,10 +4,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Helmet } from 'react-helmet';
-import { createSlug } from '@/lib/formatters';
 import AgentProfileHeader from '@/components/public/AgentProfileHeader';
 import ListingCard from '@/components/public/ListingCard';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface AgentProfile {
@@ -17,6 +16,7 @@ interface AgentProfile {
   career?: string;
   phone_number?: string;
   avatar_url?: string;
+  slug?: string;
 }
 
 interface Listing {
@@ -38,37 +38,55 @@ const AgentPublicProfile = () => {
     const fetchAgentAndListings = async () => {
       setLoading(true);
       try {
-        // Find the agent with the matching slug
-        const { data: profiles, error: profileError } = await supabase
+        // Find the agent with the matching slug directly
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name, career, phone_number, avatar_url, status')
-          .eq('status', 'approved');
+          .select('id, first_name, last_name, career, phone_number, avatar_url, status, slug')
+          .eq('status', 'approved')
+          .eq('slug', agentSlug)
+          .single();
           
-        if (profileError) throw profileError;
-        
-        if (!profiles || profiles.length === 0) {
-          navigate('/not-found');
-          return;
+        if (profileError) {
+          // If no match by slug field, try the legacy method using name
+          const { data: profiles, error: backupError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, career, phone_number, avatar_url, status')
+            .eq('status', 'approved');
+            
+          if (backupError) throw backupError;
+          
+          if (!profiles || profiles.length === 0) {
+            navigate('/not-found');
+            return;
+          }
+          
+          // Find the agent whose name matches the slug
+          const matchedAgent = profiles.find(profile => {
+            const fullName = `${profile.first_name} ${profile.last_name}`;
+            return createSlug(fullName) === agentSlug;
+          });
+          
+          if (!matchedAgent) {
+            navigate('/not-found');
+            return;
+          }
+          
+          setAgent(matchedAgent);
+          
+          // Update the profile with the slug for future use
+          await supabase
+            .from('profiles')
+            .update({ slug: agentSlug })
+            .eq('id', matchedAgent.id);
+        } else {
+          setAgent(profileData);
         }
-        
-        // Find the agent whose name matches the slug
-        const matchedAgent = profiles.find(profile => {
-          const fullName = `${profile.first_name} ${profile.last_name}`;
-          return createSlug(fullName) === agentSlug;
-        });
-        
-        if (!matchedAgent) {
-          navigate('/not-found');
-          return;
-        }
-        
-        setAgent(matchedAgent);
         
         // Fetch the agent's listings
         const { data: listingsData, error: listingsError } = await supabase
           .from('listings')
           .select('id, title, price, location, main_image_url')
-          .eq('user_id', matchedAgent.id)
+          .eq('user_id', agent ? agent.id : profileData.id)
           .eq('status', 'approved')
           .order('created_at', { ascending: false });
           
@@ -84,7 +102,7 @@ const AgentPublicProfile = () => {
     };
 
     fetchAgentAndListings();
-  }, [agentSlug, navigate]);
+  }, [agentSlug, navigate, agent?.id]);
 
   if (loading) {
     return (
@@ -191,3 +209,5 @@ const AgentPublicProfile = () => {
 };
 
 export default AgentPublicProfile;
+
+import { createSlug } from '@/lib/formatters';

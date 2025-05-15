@@ -6,15 +6,18 @@ import { Button } from '@/components/ui/button';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-// Fix import conflict by using renamed import
 import { Check as CheckIcon, Building as BuildingIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
-  receipt: z.instanceof(File).optional(),
-  career: z.string().optional(),
+  firstName: z.string().min(1, { message: 'First name is required' }),
+  lastName: z.string().min(1, { message: 'Last name is required' }),
+  phoneNumber: z.string().min(10, { message: 'Valid phone number is required' }),
+  career: z.string().min(1, { message: 'Career is required' }),
+  receipt: z.instanceof(File).refine(file => file !== null, 'Payment receipt is required'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -37,6 +40,9 @@ const Auth = () => {
     defaultValues: {
       email: '',
       password: '',
+      firstName: '',
+      lastName: '',
+      phoneNumber: '',
       career: '',
     },
   });
@@ -45,22 +51,43 @@ const Auth = () => {
     setIsLoading(true);
     try {
       if (isSignUp) {
-        const formData = new FormData();
-        formData.append('email', data.email);
-        formData.append('password', data.password);
+        // Sign up user
+        const { error: signUpError, data: signUpData } = await signUp(data.email, data.password);
         
-        if (data.career) {
-          formData.append('career', data.career);
-        }
+        if (signUpError) throw signUpError;
         
+        // If signup is successful, upload receipt and update profile
         if (receiptFile) {
-          formData.append('receipt', receiptFile);
+          const fileExt = receiptFile.name.split('.').pop();
+          const fileName = `${Date.now()}.${fileExt}`;
+          const filePath = `payment_receipts/${fileName}`;
+          
+          // Upload receipt file to storage
+          const { error: uploadError } = await supabase.storage
+            .from('files')
+            .upload(filePath, receiptFile);
+            
+          if (uploadError) throw uploadError;
+          
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('files')
+            .getPublicUrl(filePath);
+            
+          // Update profile with additional information
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({
+              first_name: data.firstName,
+              last_name: data.lastName,
+              phone_number: data.phoneNumber,
+              career: data.career,
+              payment_receipt_url: publicUrl
+            })
+            .eq('id', signUpData?.user?.id);
+            
+          if (profileError) throw profileError;
         }
-        
-        // Fix: signUp expects only 2 arguments
-        const { error } = await signUp(data.email, data.password);
-        
-        if (error) throw error;
         
         toast({
           title: 'Account created',
@@ -70,7 +97,8 @@ const Auth = () => {
         reset();
         navigate('/pending');
       } else {
-        const { error } = await signIn(data.email, data.password);
+        // Sign in
+        const { error, data } = await signIn(data.email, data.password);
         
         if (error) throw error;
         
@@ -97,7 +125,31 @@ const Auth = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setReceiptFile(e.target.files[0]);
+      const file = e.target.files[0];
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          variant: 'destructive',
+          title: 'File too large',
+          description: 'The receipt file must be less than 5MB.',
+          duration: 5000,
+        });
+        return;
+      }
+      
+      // Check file type (image or PDF)
+      const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid file type',
+          description: 'Please upload an image (JPG, PNG) or PDF file.',
+          duration: 5000,
+        });
+        return;
+      }
+      
+      setReceiptFile(file);
     }
   };
 
@@ -153,6 +205,62 @@ const Auth = () => {
 
             {isSignUp && (
               <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="block text-sm font-medium">
+                      First Name
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="firstName"
+                        type="text"
+                        {...register('firstName')}
+                        className="dark-input w-full"
+                        placeholder="John"
+                      />
+                      {errors.firstName && (
+                        <p className="mt-1 text-sm text-red-500">{errors.firstName.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="lastName" className="block text-sm font-medium">
+                      Last Name
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="lastName"
+                        type="text"
+                        {...register('lastName')}
+                        className="dark-input w-full"
+                        placeholder="Doe"
+                      />
+                      {errors.lastName && (
+                        <p className="mt-1 text-sm text-red-500">{errors.lastName.message}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="phoneNumber" className="block text-sm font-medium">
+                    Phone Number
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="phoneNumber"
+                      type="tel"
+                      {...register('phoneNumber')}
+                      className="dark-input w-full"
+                      placeholder="+1234567890"
+                    />
+                    {errors.phoneNumber && (
+                      <p className="mt-1 text-sm text-red-500">{errors.phoneNumber.message}</p>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <label htmlFor="career" className="block text-sm font-medium">
                     Career
@@ -165,20 +273,32 @@ const Auth = () => {
                       className="dark-input w-full"
                       placeholder="Real Estate Agent"
                     />
+                    {errors.career && (
+                      <p className="mt-1 text-sm text-red-500">{errors.career.message}</p>
+                    )}
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="receipt" className="block text-sm font-medium">
-                    Upload Payment Receipt
+                    Upload Payment Receipt (Max 5MB - Image or PDF)
                   </label>
                   <div className="mt-1">
                     <input
                       id="receipt"
                       type="file"
+                      accept="image/jpeg,image/png,image/jpg,application/pdf"
                       onChange={handleFileChange}
                       className="dark-input w-full"
                     />
+                    {receiptFile && (
+                      <p className="mt-1 text-sm text-green-500">
+                        File selected: {receiptFile.name}
+                      </p>
+                    )}
+                    {errors.receipt && (
+                      <p className="mt-1 text-sm text-red-500">{errors.receipt.message}</p>
+                    )}
                     <p className="mt-2 text-sm text-gold-400">
                       Upload proof of payment to proceed with registration.
                     </p>

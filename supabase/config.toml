@@ -1,1 +1,5 @@
+
 project_id = "wixmnvdmcnlbiyxnfpfc"
+
+[storage]
+file_size_limit = "5MB"

@@ -133,10 +133,30 @@ const AdminPendingSignupsPage = () => {
   const handleApproveUser = async (userId: string) => {
     setApproving(userId);
     try {
-      // Update the profile status to approved
+      // Get the user's profile to generate a slug
+      const { data: profileData, error: profileFetchError } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', userId)
+        .single();
+        
+      if (profileFetchError) throw profileFetchError;
+      
+      if (!profileData.first_name || !profileData.last_name) {
+        toast.error('User has incomplete profile information');
+        return;
+      }
+      
+      // Generate a slug from the user's name
+      const slug = createSlug(`${profileData.first_name} ${profileData.last_name}`);
+      
+      // Update the profile status to approved and set the slug
       const { error } = await supabase
         .from('profiles')
-        .update({ status: 'approved' })
+        .update({ 
+          status: 'approved',
+          slug: slug
+        })
         .eq('id', userId);
 
       if (error) throw error;

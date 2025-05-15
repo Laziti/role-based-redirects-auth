@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
   receipt: z.instanceof(File).optional(),
   career: z.string().optional(),
 });
@@ -58,7 +58,10 @@ const Auth = () => {
         }
         
         // Fix: signUp expects only 2 arguments
-        await signUp(data.email, data.password);
+        const { error } = await signUp(data.email, data.password);
+        
+        if (error) throw error;
+        
         toast({
           title: 'Account created',
           description: 'Your account is pending approval.',
@@ -67,7 +70,9 @@ const Auth = () => {
         reset();
         navigate('/pending');
       } else {
-        await signIn(data.email, data.password);
+        const { error } = await signIn(data.email, data.password);
+        
+        if (error) throw error;
         
         // Based on user role, redirect to appropriate dashboard
         // This would be handled in the signIn function or subsequent auth check

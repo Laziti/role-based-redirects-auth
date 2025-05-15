@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { formatCurrency } from '@/lib/formatters';
+import { MapPin, Calendar } from 'lucide-react';
 
 interface ListingCardProps {
   id: string;
@@ -12,6 +12,8 @@ interface ListingCardProps {
   location?: string;
   mainImageUrl?: string;
   agentSlug: string;
+  description?: string;
+  createdAt?: string;
 }
 
 const ListingCard: React.FC<ListingCardProps> = ({
@@ -20,7 +22,9 @@ const ListingCard: React.FC<ListingCardProps> = ({
   price,
   location,
   mainImageUrl,
-  agentSlug
+  agentSlug,
+  description,
+  createdAt
 }) => {
   return (
     <Link to={`/${agentSlug}/listing/${id}`} className="block transition-transform hover:-translate-y-1">
@@ -32,6 +36,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
                 src={mainImageUrl} 
                 alt={title} 
                 className="object-cover w-full h-full" 
+                loading="lazy"
               />
             ) : (
               <div className="w-full h-full bg-gold-900/10 flex items-center justify-center">
@@ -51,35 +56,40 @@ const ListingCard: React.FC<ListingCardProps> = ({
                 </svg>
               </div>
             )}
+            <div className="absolute top-2 right-2 bg-gold-500 text-black px-3 py-1 rounded-full text-sm font-semibold">
+              {formatCurrency(price || 0)}
+            </div>
           </AspectRatio>
         </div>
         
         <CardContent className="pt-4">
-          <h3 className="font-semibold text-lg mb-1 text-gold-500 line-clamp-1">{title}</h3>
-          {location && (
-            <p className="text-sm text-[var(--portal-text-secondary)] line-clamp-1">
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="h-3 w-3 inline-block mr-1" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              >
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              {location}
-            </p>
-          )}
+          <h3 className="font-semibold text-lg mb-2 text-gold-500 line-clamp-2">{title}</h3>
+          
+          <div className="space-y-2">
+            {location && (
+              <div className="flex items-center text-sm text-[var(--portal-text-secondary)]">
+                <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+                <span className="line-clamp-1">{location}</span>
+              </div>
+            )}
+            
+            {description && (
+              <p className="text-sm text-[var(--portal-text-secondary)] line-clamp-2">
+                {description}
+              </p>
+            )}
+          </div>
         </CardContent>
         
         <CardFooter className="pt-0 pb-4">
-          <div className="font-bold text-xl text-[var(--portal-text)]">
-            {formatCurrency(price || 0)}
-          </div>
+          {createdAt && (
+            <div className="flex items-center text-xs text-[var(--portal-text-secondary)]">
+              <Calendar className="h-3 w-3 mr-1" />
+              <time dateTime={createdAt}>
+                {new Date(createdAt).toLocaleDateString()}
+              </time>
+            </div>
+          )}
         </CardFooter>
       </Card>
     </Link>

@@ -1,38 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { createSlug, formatCurrency, formatDate } from '@/lib/formatters';
 import ImageGallery from '@/components/public/ImageGallery';
-import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-interface Agent {
-  id: string;
-  first_name: string;
-  last_name: string;
-  career?: string;
-  phone_number?: string;
-  avatar_url?: string;
-  slug?: string;
-}
-
-interface Listing {
-  id: string;
-  title: string;
-  description?: string;
-  price: number;
-  location?: string;
-  main_image_url?: string;
-  additional_image_urls?: string[];
-  created_at: string;
-  phone_number?: string;
-  whatsapp_link?: string;
-  telegram_link?: string;
-  user_id: string;
-}
+import { Listing, Agent } from '@/types';
 
 const ListingDetail = () => {
   const { agentSlug, listingId } = useParams<{ agentSlug: string; listingId: string }>();
@@ -40,6 +15,7 @@ const ListingDetail = () => {
   const [listing, setListing] = useState<Listing | null>(null);
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchListingAndAgent = async () => {
@@ -119,12 +95,36 @@ const ListingDetail = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--portal-bg)] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gold-500" />
+          <p className="text-[var(--portal-text-secondary)]">Loading property details...</p>
+        </div>
       </div>
     );
   }
 
-  if (!listing || !agent) return null;
+  if (error || !listing || !agent) {
+    return (
+      <div className="min-h-screen bg-[var(--portal-bg)]">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Oops!</h2>
+            <p className="text-[var(--portal-text-secondary)] mb-6">
+              {error || 'This property listing could not be found.'}
+            </p>
+            <Button
+              onClick={() => navigate(-1)}
+              variant="outline"
+              className="inline-flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const pageTitle = `${listing.title} - Property Listing`;
   const pageDescription = listing.description 
@@ -134,188 +134,185 @@ const ListingDetail = () => {
   const contactOptions = [
     { 
       type: 'phone',
-      label: 'Call',
-      icon: (
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          className="h-5 w-5 mr-2" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-        >
-          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-        </svg>
-      ),
-      link: listing.phone_number || agent.phone_number,
-      href: `tel:${listing.phone_number || agent.phone_number}`,
+      label: 'Call Agent',
+      icon: <Phone className="h-4 w-4 mr-2" />,
+      href: `tel:${agent.phone_number}`,
+      link: agent.phone_number,
     },
     { 
       type: 'whatsapp',
       label: 'WhatsApp',
-      icon: (
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          className="h-5 w-5 mr-2" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-        >
-          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-        </svg>
-      ),
-      link: listing.whatsapp_link,
+      icon: <MessageCircle className="h-4 w-4 mr-2" />,
       href: listing.whatsapp_link,
+      link: listing.whatsapp_link,
     },
     { 
       type: 'telegram',
       label: 'Telegram',
-      icon: (
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          className="h-5 w-5 mr-2" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-        >
-          <path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.54 6.618a2.24 2.24 0 0 0-.24 3.986l4.155 1.781 1.522 4.564a2.241 2.241 0 0 0 1.581 1.533 2.24 2.24 0 0 0 2.401-.777l1.057-1.26 5.262 3.874a2.242 2.242 0 0 0 3.504-1.082l3.366-16.54a2.24 2.24 0 0 0-1.046-2.912z"></path>
-          <line x1="8" y1="9" x2="13" y2="14"></line>
-          <line x1="14" y1="13" x2="16" y2="11"></line>
-        </svg>
-      ),
-      link: listing.telegram_link,
+      icon: <Send className="h-4 w-4 mr-2" />,
       href: listing.telegram_link,
+      link: listing.telegram_link,
     },
   ].filter(option => option.link);
 
   return (
-    <div className="min-h-screen bg-[var(--portal-bg)] text-[var(--portal-text)]">
+    <>
       <Helmet>
         <title>{pageTitle}</title>
-        <meta name="description" content={pageDescription} />
+        <meta name="description" content={listing.description?.slice(0, 155) || `View details for ${listing.title}`} />
         <meta property="og:title" content={pageTitle} />
-        <meta property="og:description" content={pageDescription} />
-        {listing.main_image_url && <meta property="og:image" content={listing.main_image_url} />}
+        <meta property="og:description" content={listing.description?.slice(0, 155) || `View details for ${listing.title}`} />
+        {listing.main_image_url && (
+          <meta property="og:image" content={listing.main_image_url} />
+        )}
+        <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={pageTitle} />
-        <meta name="twitter:description" content={pageDescription} />
-        {listing.main_image_url && <meta name="twitter:image" content={listing.main_image_url} />}
       </Helmet>
       
+      <div className="min-h-screen bg-[var(--portal-bg)]">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-4">
-            <Link 
-              to={`/${agentSlug}`}
-              className="inline-flex items-center text-gold-500 hover:text-gold-600"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to all listings
-            </Link>
-          </div>
-          
-          {/* Listing Header */}
+          {/* Back Button */}
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center text-[var(--portal-text-secondary)] hover:text-gold-500 mb-6 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Listings
+          </button>
+
+          {/* Title Section */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2 text-gold-500">{listing.title}</h1>
-            
-            <div className="flex flex-wrap gap-4 text-[var(--portal-text-secondary)]">
-              {listing.location && (
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">{listing.title}</h1>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base text-[var(--portal-text-secondary)]">
                 <div className="flex items-center">
-                  <MapPin className="h-5 w-5 mr-1 text-gold-500" />
-                  <span>{listing.location}</span>
+                <MapPin className="h-4 w-4 mr-1" />
+                <span>{listing.location || 'Location not specified'}</span>
                 </div>
-              )}
-              
+              <span className="hidden sm:inline">•</span>
               <div className="flex items-center">
-                <Banknote className="h-5 w-5 mr-1 text-gold-500" />
-                <span className="font-semibold">{formatCurrency(listing.price || 0)}</span>
+                <Banknote className="h-4 w-4 mr-1" />
+                <span>{formatCurrency(listing.price)}</span>
               </div>
-              
+              <span className="hidden sm:inline">•</span>
               <div className="flex items-center">
-                <Calendar className="h-5 w-5 mr-1 text-gold-500" />
-                <span>Listed on {formatDate(listing.created_at)}</span>
+                <Calendar className="h-4 w-4 mr-1" />
+                <span>Listed {formatDate(listing.created_at)}</span>
               </div>
             </div>
           </div>
           
           {/* Image Gallery */}
+          <div className="mb-8">
           <ImageGallery 
             mainImage={listing.main_image_url || ''} 
-            additionalImages={listing.additional_image_urls} 
+              additionalImages={listing.additional_image_urls || []}
           />
+          </div>
           
+          {/* Listing Details */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            {/* Listing Description */}
             <div className="lg:col-span-2">
+              {/* Description */}
               <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6 mb-6">
                 <h2 className="text-xl font-bold mb-4 text-gold-500">Description</h2>
+                <div className="prose prose-gold dark:prose-invert max-w-none">
                 {listing.description ? (
-                  <div className="whitespace-pre-wrap">
-                    {listing.description}
-                  </div>
+                    <p className="whitespace-pre-wrap">{listing.description}</p>
                 ) : (
                   <p className="text-[var(--portal-text-secondary)]">No description provided.</p>
                 )}
               </div>
             </div>
             
-            {/* Sidebar - Agent Info & Contact */}
-            <div className="space-y-6">
-              {/* Agent Card */}
+              {/* Property Details */}
               <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6">
-                <h3 className="text-lg font-bold mb-4 text-gold-500">Listed by:</h3>
+                <h2 className="text-xl font-bold mb-4 text-gold-500">Property Details</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Location</h3>
+                    <p className="text-[var(--portal-text-secondary)]">
+                      {listing.location || 'Location not specified'}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Price</h3>
+                    <p className="text-[var(--portal-text-secondary)]">
+                      {formatCurrency(listing.price || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Listed</h3>
+                    <p className="text-[var(--portal-text-secondary)]">
+                      {formatDate(listing.created_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Section */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-4">
+                <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6 mb-6">
+                  <h2 className="text-xl font-bold mb-4 text-gold-500">Contact Agent</h2>
                 <div className="flex items-center space-x-4 mb-4">
                   <div className="w-16 h-16 rounded-full bg-gold-500/10 flex items-center justify-center text-gold-500 text-xl font-bold">
                     {agent.first_name?.charAt(0) || ''}{agent.last_name?.charAt(0) || ''}
                   </div>
                   <div>
-                    <h4 className="font-semibold">{agent.first_name} {agent.last_name}</h4>
+                      <h3 className="font-semibold">{agent.first_name} {agent.last_name}</h3>
                     {agent.career && <p className="text-sm text-[var(--portal-text-secondary)]">{agent.career}</p>}
                   </div>
+                </div>
+
+                  <div className="space-y-3">
+                    {contactOptions.map((option, index) => (
+                      option.link && (
+                        <a
+                          key={option.type}
+                          href={option.href}
+                          target={option.type !== 'phone' ? '_blank' : undefined}
+                          rel={option.type !== 'phone' ? 'noopener noreferrer' : undefined}
+                          className="flex items-center justify-center w-full px-4 py-2 bg-gold-500 hover:bg-gold-600 text-black rounded-lg transition-colors"
+                        >
+                          {option.icon}
+                          {option.label}
+                        </a>
+                      )
+                    ))}
                 </div>
                 
                 <Link 
                   to={`/${agent.slug || agentSlug}`}
-                  className="flex items-center justify-center w-full text-gold-500 hover:text-gold-600"
+                    className="flex items-center justify-center w-full mt-4 text-gold-500 hover:text-gold-600"
                 >
                   <span>View all listings</span>
                   <ExternalLink className="h-4 w-4 ml-1" />
                 </Link>
               </div>
               
-              {/* Contact Options */}
-              {contactOptions.length > 0 && (
+                {/* Share Section */}
                 <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6">
-                  <h3 className="text-lg font-bold mb-4 text-gold-500">Contact about this property</h3>
+                  <h2 className="text-xl font-bold mb-4 text-gold-500">Share Listing</h2>
                   <div className="space-y-3">
-                    {contactOptions.map((option, index) => (
-                      <a
-                        key={index}
-                        href={option.href}
-                        target={option.type !== 'phone' ? '_blank' : undefined}
-                        rel={option.type !== 'phone' ? 'noopener noreferrer' : undefined}
-                        className="flex items-center justify-center w-full p-2.5 bg-gold-500 hover:bg-gold-600 text-black rounded-md font-medium"
-                      >
-                        {option.icon}
-                        {option.label}
-                      </a>
-                    ))}
+                    <Button
+                      onClick={() => {
+                        navigator.clipboard.writeText(window.location.href);
+                        toast.success('Link copied to clipboard');
+                      }}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Copy Link
+                    </Button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

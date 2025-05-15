@@ -24,6 +24,7 @@ import { Eye, Search, Filter, X, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import ListingDetailsModal from '@/components/admin/ListingDetailsModal';
+import { formatCurrency } from '@/lib/formatters';
 
 interface Listing {
   id: string;
@@ -177,11 +178,6 @@ const AdminListingsPage = () => {
     }
     
     return user.email || 'Unknown User';
-  };
-  
-  const formatCurrency = (amount: number | null) => {
-    if (amount === null || amount === undefined) return 'N/A';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
   
   const getStatusBadge = (status: string | null) => {

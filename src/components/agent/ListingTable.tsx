@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Table,
@@ -12,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Edit, Trash } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrency } from '@/lib/formatters';
 
 interface Listing {
   id: string;
@@ -25,22 +25,18 @@ interface Listing {
 interface ListingTableProps {
   listings: Listing[];
   onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
 }
 
-const ListingTable = ({ listings, onDelete }: ListingTableProps) => {
+const ListingTable = ({ listings, onDelete, onEdit }: ListingTableProps) => {
   const navigate = useNavigate();
   
-  const handleEdit = (id: string) => {
-    // For now just show a placeholder, we'll implement edit functionality later
-    console.log(`Edit listing ${id}`);
-  };
-
   return (
-    <div className="bg-white rounded-md shadow">
+    <div className="bg-[var(--portal-card-bg)] rounded-md shadow border border-[var(--portal-border)]">
       {listings.length === 0 ? (
         <div className="p-8 text-center">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No listings found</h3>
-          <p className="text-gray-500 mb-4">You haven't created any listings yet.</p>
+          <h3 className="text-lg font-medium text-[var(--portal-text)] mb-2">No listings found</h3>
+          <p className="text-[var(--portal-text-secondary)] mb-4">You haven't created any listings yet.</p>
           <Button onClick={() => navigate('/agent?tab=create')}>Create Your First Listing</Button>
         </div>
       ) : (
@@ -66,19 +62,19 @@ const ListingTable = ({ listings, onDelete }: ListingTableProps) => {
                         className="w-12 h-12 object-cover rounded-md mr-3"
                       />
                     ) : (
-                      <div className="w-12 h-12 bg-gray-200 rounded-md mr-3 flex items-center justify-center text-gray-400">
+                      <div className="w-12 h-12 bg-[var(--portal-highlight)] rounded-md mr-3 flex items-center justify-center text-[var(--portal-text-secondary)]">
                         No img
                       </div>
                     )}
-                    <span className="truncate max-w-[200px]">{listing.title}</span>
+                    <span className="truncate max-w-[200px] text-[var(--portal-text)]">{listing.title}</span>
                   </div>
                 </TableCell>
-                <TableCell>{listing.price ? `$${listing.price.toLocaleString()}` : 'N/A'}</TableCell>
-                <TableCell>{listing.location || 'N/A'}</TableCell>
-                <TableCell>{format(new Date(listing.created_at), 'MMM d, yyyy')}</TableCell>
+                <TableCell className="text-[var(--portal-text)]">{listing.price ? formatCurrency(listing.price) : 'N/A'}</TableCell>
+                <TableCell className="text-[var(--portal-text)]">{listing.location || 'N/A'}</TableCell>
+                <TableCell className="text-[var(--portal-text)]">{format(new Date(listing.created_at), 'MMM d, yyyy')}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
-                    <Button variant="outline" size="icon" onClick={() => handleEdit(listing.id)}>
+                    <Button variant="outline" size="icon" onClick={() => onEdit(listing.id)}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="icon" className="text-red-500" onClick={() => onDelete(listing.id)}>

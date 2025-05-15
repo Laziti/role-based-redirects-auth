@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { 
   Dialog,
@@ -11,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, ExternalLink } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatters';
 
 interface User {
   id: string;
@@ -89,11 +89,6 @@ const UserDetailsModal = ({ user, open, onOpenChange }: UserDetailsModalProps) =
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount?: number) => {
-    if (amount === undefined || amount === null) return 'N/A';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
 
   return (

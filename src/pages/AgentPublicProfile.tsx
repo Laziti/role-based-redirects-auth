@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +24,8 @@ interface Listing {
   price: number;
   location?: string;
   main_image_url?: string;
+  description?: string;
+  created_at?: string;
 }
 
 const AgentPublicProfile = () => {
@@ -46,6 +47,9 @@ const AgentPublicProfile = () => {
           .eq('slug', agentSlug)
           .single();
           
+        console.log('Fetched agent profile data:', profileData);
+        console.log('Profile fetch error:', profileError);
+
         if (profileError) {
           // If no match by slug field, try the legacy method using name
           const { data: profiles, error: backupError } = await supabase
@@ -53,6 +57,9 @@ const AgentPublicProfile = () => {
             .select('id, first_name, last_name, career, phone_number, avatar_url, status')
             .eq('status', 'approved');
             
+        console.log('Fetched profiles for backup search:', profiles);
+        console.log('Backup profile fetch error:', backupError);
+
           if (backupError) throw backupError;
           
           if (!profiles || profiles.length === 0) {
@@ -85,11 +92,14 @@ const AgentPublicProfile = () => {
         // Fetch the agent's listings
         const { data: listingsData, error: listingsError } = await supabase
           .from('listings')
-          .select('id, title, price, location, main_image_url')
+          .select('id, title, price, location, main_image_url, description, created_at')
           .eq('user_id', agent ? agent.id : profileData.id)
-          .eq('status', 'approved')
+          .eq('status', 'active')
           .order('created_at', { ascending: false });
           
+        console.log('Fetched listings data:', listingsData);
+        console.log('Listings fetch error:', listingsError);
+
         if (listingsError) throw listingsError;
         
         setListings(listingsData || []);
@@ -170,6 +180,8 @@ const AgentPublicProfile = () => {
                     location={listing.location}
                     mainImageUrl={listing.main_image_url}
                     agentSlug={agentSlug}
+                    description={listing.description}
+                    createdAt={listing.created_at}
                   />
                 ))}
               </div>

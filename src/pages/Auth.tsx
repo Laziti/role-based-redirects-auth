@@ -1,34 +1,49 @@
-
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check as CheckIcon, Building as BuildingIcon } from 'lucide-react';
+import { Check as CheckIcon, Building as BuildingIcon, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-const formSchema = z.object({
+const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
+});
+
+const signUpSchema = signInSchema.extend({
   firstName: z.string().min(1, { message: 'First name is required' }),
   lastName: z.string().min(1, { message: 'Last name is required' }),
   phoneNumber: z.string().min(10, { message: 'Valid phone number is required' }),
   career: z.string().min(1, { message: 'Career is required' }),
-  receipt: z.instanceof(File).refine(file => file !== null, 'Payment receipt is required'),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type SignInFormValues = z.infer<typeof signInSchema>;
+type SignUpFormValues = z.infer<typeof signUpSchema>;
+type FormValues = SignUpFormValues;
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, userRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check localStorage for authMode on component mount
+  useEffect(() => {
+    const authMode = localStorage.getItem('authMode');
+    if (authMode === 'signup') {
+      setIsSignUp(true);
+    } else if (authMode === 'signin') {
+      setIsSignUp(false);
+    }
+    // Clear localStorage after using it
+    localStorage.removeItem('authMode');
+  }, []);
 
   const {
     register,
@@ -36,7 +51,7 @@ const Auth = () => {
     formState: { errors },
     reset,
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(isSignUp ? signUpSchema : signInSchema),
     defaultValues: {
       email: '',
       password: '',
@@ -47,17 +62,29 @@ const Auth = () => {
     },
   });
 
+  useEffect(() => {
+    // Reset form when switching between sign-in and sign-up
+    reset();
+    setReceiptFile(null);
+  }, [isSignUp, reset]);
+
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
       if (isSignUp) {
-        // Sign up user
-        const { error: signUpError, data: signUpData } = await signUp(data.email, data.password);
-        
-        if (signUpError) throw signUpError;
-        
-        // If signup is successful, upload receipt and update profile
-        if (receiptFile) {
+        // Validate receipt file
+        if (!receiptFile) {
+          toast({
+            variant: 'destructive',
+            title: 'Missing receipt',
+            description: 'Please upload a payment receipt to continue.',
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // First, upload the receipt file
           const fileExt = receiptFile.name.split('.').pop();
           const fileName = `${Date.now()}.${fileExt}`;
           const filePath = `payment_receipts/${fileName}`;
@@ -69,10 +96,31 @@ const Auth = () => {
             
           if (uploadError) throw uploadError;
           
-          // Get public URL
+        // Get public URL for the receipt
           const { data: { publicUrl } } = supabase.storage
             .from('files')
             .getPublicUrl(filePath);
+            
+        // Sign up user with metadata
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              first_name: data.firstName,
+              last_name: data.lastName,
+              phone_number: data.phoneNumber,
+              career: data.career,
+              payment_receipt_url: publicUrl
+            }
+          }
+        });
+        
+        if (signUpError) throw signUpError;
+        
+        if (!signUpData.user) {
+          throw new Error('Failed to create user account');
+        }
             
           // Update profile with additional information
           const { error: profileError } = await supabase
@@ -82,12 +130,12 @@ const Auth = () => {
               last_name: data.lastName,
               phone_number: data.phoneNumber,
               career: data.career,
-              payment_receipt_url: publicUrl
+            payment_receipt_url: publicUrl,
+            status: 'pending_approval'
             })
-            .eq('id', signUpData?.user?.id);
+          .eq('id', signUpData.user.id);
             
           if (profileError) throw profileError;
-        }
         
         toast({
           title: 'Account created',
@@ -98,12 +146,19 @@ const Auth = () => {
         navigate('/pending');
       } else {
         // Sign in
-        const { error, data } = await signIn(data.email, data.password);
+        const { error } = await signIn(data.email, data.password);
         
         if (error) throw error;
         
-        // Based on user role, redirect to appropriate dashboard
-        // This would be handled in the signIn function or subsequent auth check
+        // Navigate based on user role
+        if (userRole === 'super_admin') {
+          navigate('/admin');
+        } else if (userRole === 'agent') {
+          navigate('/agent');
+        } else {
+          navigate('/');
+        }
+        
         toast({
           title: 'Welcome back!',
           description: 'You have successfully signed in.',
@@ -157,10 +212,17 @@ const Auth = () => {
     <div className="flex min-h-screen dark-mode bg-[var(--portal-bg)]">
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:w-96">
-          <div className="flex justify-center mb-6">
-            <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-gold-500 to-gold-400 flex items-center justify-center text-black shadow-lg">
+          <div className="flex flex-col items-center mb-6">
+            <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-gold-500 to-gold-400 flex items-center justify-center text-black shadow-lg mb-4">
               <BuildingIcon className="h-8 w-8" />
             </div>
+            <Link 
+              to="/" 
+              className="text-sm text-gold-400 hover:text-gold-500 flex items-center gap-1 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
           </div>
           <h2 className="text-3xl font-extrabold text-center gradient-text">
             {isSignUp ? 'Create Account' : 'Sign In'}
@@ -295,9 +357,6 @@ const Auth = () => {
                       <p className="mt-1 text-sm text-green-500">
                         File selected: {receiptFile.name}
                       </p>
-                    )}
-                    {errors.receipt && (
-                      <p className="mt-1 text-sm text-red-500">{errors.receipt.message}</p>
                     )}
                     <p className="mt-2 text-sm text-gold-400">
                       Upload proof of payment to proceed with registration.

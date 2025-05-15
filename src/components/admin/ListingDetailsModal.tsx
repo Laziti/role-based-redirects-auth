@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog,
@@ -14,6 +13,7 @@ import { Loader2, ExternalLink, Phone, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/formatters';
 
 interface UserInfo {
   id: string;
@@ -132,11 +132,6 @@ const ListingDetailsModal = ({ listing, open, onOpenChange, onStatusChange }: Li
     } finally {
       setUpdating(false);
     }
-  };
-  
-  const formatCurrency = (amount?: number | null) => {
-    if (amount === undefined || amount === null) return 'Not specified';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
   
   const formatDate = (dateString: string) => {

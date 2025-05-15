@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -128,30 +127,6 @@ export const AdminSidebar = () => {
       {/* Desktop Sidebar */}
       <div className="w-72 h-screen flex-shrink-0 overflow-auto portal-sidebar hidden md:block">
         <SidebarContent />
-      </div>
-      
-      {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-[var(--portal-sidebar-bg)] border-b border-[var(--portal-border)] p-4 z-10">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <div className="h-8 w-8 rounded-lg bg-gold-500 flex items-center justify-center text-black shadow-md">
-              <Building className="h-5 w-5" />
-            </div>
-            <h2 className="font-bold text-[var(--portal-text)]">Admin Portal</h2>
-          </div>
-          
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-[var(--portal-text-secondary)]">
-                <List className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0 bg-[var(--portal-sidebar-bg)] border-r border-[var(--portal-border)]">
-              <SidebarContent />
-            </SheetContent>
-          </Sheet>
-        </div>
       </div>
       
       {/* Mobile Bottom Navigation */}

@@ -80,6 +80,7 @@ export type Database = {
           phone_number: string | null
           status: string | null
           updated_at: string
+          slug: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -92,6 +93,7 @@ export type Database = {
           phone_number?: string | null
           status?: string | null
           updated_at?: string
+          slug?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -104,6 +106,7 @@ export type Database = {
           phone_number?: string | null
           status?: string | null
           updated_at?: string
+          slug?: string | null
         }
         Relationships: []
       }

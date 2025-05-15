@@ -1,4 +1,3 @@
-
 CREATE OR REPLACE FUNCTION public.handle_new_user()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -12,6 +11,9 @@ BEGIN
     status, 
     first_name, 
     last_name,
+    phone_number,
+    career,
+    payment_receipt_url,
     listing_limit
   )
   VALUES (
@@ -19,6 +21,9 @@ BEGIN
     'pending_approval',
     NEW.raw_user_meta_data->>'first_name',
     NEW.raw_user_meta_data->>'last_name',
+    NEW.raw_user_meta_data->>'phone_number',
+    NEW.raw_user_meta_data->>'career',
+    NEW.raw_user_meta_data->>'payment_receipt_url',
     '{"type": "month", "value": 5}'::jsonb
   );
   

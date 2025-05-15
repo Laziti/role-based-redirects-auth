@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -147,16 +146,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Added refreshSession method
+  // Completely rewritten refreshSession method
   const refreshSession = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
+      const { data, error } = await supabase.auth.refreshSession();
       
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-        fetchUserStatus(session.user.id);
+      if (error) {
+        console.error('Error refreshing token:', error);
+        return;
+      }
+      
+      // Update the session and user state with new data
+      const newSession = data.session;
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      
+      // Update user role and status
+      if (newSession?.user) {
+        fetchUserRole(newSession.user.id);
+        fetchUserStatus(newSession.user.id);
       }
     } catch (error) {
       console.error('Error refreshing session:', error);

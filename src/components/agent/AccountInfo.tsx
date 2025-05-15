@@ -10,10 +10,15 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Clipboard, Check } from 'lucide-react';
 
+type ListingLimitType = {
+  type: string;
+  value: number;
+};
+
 const AccountInfo = ({ listings }) => {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [listingLimit, setListingLimit] = useState({
+  const [listingLimit, setListingLimit] = useState<ListingLimitType>({
     type: 'month',
     value: 5
   });
@@ -32,7 +37,18 @@ const AccountInfo = ({ listings }) => {
         setProfile(data);
 
         if (data.listing_limit) {
-          setListingLimit(data.listing_limit);
+          // Make sure we properly parse and validate the listing_limit before setting it
+          try {
+            const limitData = data.listing_limit;
+            if (limitData && typeof limitData === 'object' && 'type' in limitData && 'value' in limitData) {
+              setListingLimit({
+                type: String(limitData.type),
+                value: Number(limitData.value)
+              });
+            }
+          } catch (parseError) {
+            console.error('Error parsing listing limit:', parseError);
+          }
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -61,7 +77,7 @@ const AccountInfo = ({ listings }) => {
       case 'week':
         count = listings.filter(l => {
           const listingDate = new Date(l.created_at);
-          const diffTime = Math.abs(now - listingDate);
+          const diffTime = Math.abs(now.getTime() - listingDate.getTime());
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           return diffDays <= 7;
         }).length;

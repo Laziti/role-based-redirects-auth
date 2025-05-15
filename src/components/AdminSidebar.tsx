@@ -6,6 +6,7 @@ import { LayoutDashboard, Users, FileCheck, List, LogOut, Building } from 'lucid
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import '@/styles/portal-theme.css';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 export const AdminSidebar = () => {
   const { signOut, user } = useAuth();
@@ -15,11 +16,11 @@ export const AdminSidebar = () => {
     { icon: <Users className="h-5 w-5" />, label: "Users", path: "/admin/users" },
     { icon: <FileCheck className="h-5 w-5" />, label: "Pending Signups", path: "/admin/pending-signups" },
     { icon: <List className="h-5 w-5" />, label: "Listings", path: "/admin/listings" }
-    // Settings removed as requested
   ];
 
-  return (
-    <div className="w-72 h-screen flex-shrink-0 overflow-auto portal-sidebar">
+  // Desktop sidebar content
+  const SidebarContent = () => (
+    <div className="w-full h-full flex-shrink-0 overflow-auto portal-sidebar">
       <div className="p-6 border-b border-[var(--portal-border)]">
         <div className="flex items-center space-x-3">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-gold-500 flex items-center justify-center text-black shadow-lg">
@@ -86,6 +87,78 @@ export const AdminSidebar = () => {
         </Button>
       </div>
     </div>
+  );
+  
+  // Mobile bottom navigation
+  const MobileNav = () => (
+    <div className="fixed bottom-0 left-0 right-0 bg-[var(--portal-sidebar-bg)] border-t border-[var(--portal-border)] py-2 px-4 md:hidden z-10">
+      <div className="flex justify-around items-center">
+        {menuItems.map((item) => (
+          <NavLink 
+            key={item.path}
+            to={item.path}
+            end={item.path === "/admin"}
+            className={({ isActive }) => 
+              `flex flex-col items-center p-2 rounded-lg transition-all ${
+                isActive ? 'text-gold-500' : 'text-[var(--portal-text-secondary)]'
+              }`
+            }
+          >
+            <div className={({ isActive }) => 
+              `p-1.5 rounded-lg ${isActive ? 'bg-gold-500/20' : ''}`
+            }>
+              {item.icon}
+            </div>
+            <span className="text-xs mt-1 font-medium">{item.label}</span>
+          </NavLink>
+        ))}
+        <button 
+          className="flex flex-col items-center p-2 text-red-500"
+          onClick={signOut}
+        >
+          <div className="p-1.5">
+            <LogOut className="h-5 w-5" />
+          </div>
+          <span className="text-xs mt-1 font-medium">Logout</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <div className="w-72 h-screen flex-shrink-0 overflow-auto portal-sidebar hidden md:block">
+        <SidebarContent />
+      </div>
+      
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-[var(--portal-sidebar-bg)] border-b border-[var(--portal-border)] p-4 z-10">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="h-8 w-8 rounded-lg bg-gold-500 flex items-center justify-center text-black shadow-md">
+              <Building className="h-5 w-5" />
+            </div>
+            <h2 className="font-bold text-[var(--portal-text)]">Admin Portal</h2>
+          </div>
+          
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-[var(--portal-text-secondary)]">
+                <List className="h-5 w-5" />
+                <span className="sr-only">Toggle Menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 p-0 bg-[var(--portal-sidebar-bg)] border-r border-[var(--portal-border)]">
+              <SidebarContent />
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
+    </>
   );
 };
 

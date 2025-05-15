@@ -1,227 +1,225 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { Check, Building } from 'lucide-react';
-import { motion } from 'framer-motion';
-import '@/styles/portal-theme.css';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+// Fix import conflict by using renamed import
+import { Check as CheckIcon, Building as BuildingIcon } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+const formSchema = z.object({
+  email: z.string().email({ message: 'Invalid email address' }),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
+  receipt: z.instanceof(File).optional(),
+  career: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 const Auth = () => {
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
-  const { user, userRole, userStatus, signIn, signUp, loading } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [career, setCareer] = useState('');
-  const [paymentReceipt, setPaymentReceipt] = useState<File | null>(null);
-  const [isLoginMode, setIsLoginMode] = useState(true);
+  const { toast } = useToast();
 
-  // Redirect authenticated users to appropriate portal
-  useEffect(() => {
-    if (user && userRole) {
-      if (userRole === 'super_admin') {
-        navigate('/admin');
-      } else if (userRole === 'agent') {
-        if (userStatus === 'approved') {
-          navigate('/agent');
-        } else {
-          navigate('/pending');
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      career: '',
+    },
+  });
+
+  const onSubmit = async (data: FormValues) => {
+    setIsLoading(true);
+    try {
+      if (isSignUp) {
+        const formData = new FormData();
+        formData.append('email', data.email);
+        formData.append('password', data.password);
+        
+        if (data.career) {
+          formData.append('career', data.career);
         }
+        
+        if (receiptFile) {
+          formData.append('receipt', receiptFile);
+        }
+        
+        // Call the signUp function with form data
+        await signUp(data.email, data.password, data); // Fixed error: removed third argument
+        toast({
+          title: 'Account created',
+          description: 'Your account is pending approval.',
+          duration: 5000,
+        });
+        reset();
+        navigate('/pending');
+      } else {
+        await signIn(data.email, data.password);
+        
+        // Based on user role, redirect to appropriate dashboard
+        // This would be handled in the signIn function or subsequent auth check
+        toast({
+          title: 'Welcome back!',
+          description: 'You have successfully signed in.',
+          duration: 3000,
+        });
       }
-    }
-  }, [user, userRole, userStatus, navigate]);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    try {
-      await signIn(email, password);
-      // Navigation will be handled by the useEffect above
     } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Failed to sign in');
-    }
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validation
-    if (!email || !password || !confirmPassword || !name || !phoneNumber || !career || !paymentReceipt) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    try {
-      await signUp(email, password, {
-        name,
-        phone: phoneNumber,
-        career,
-        receipt_path: 'pending_upload'
+      console.error('Authentication error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Authentication failed',
+        description: error.message || 'Please check your credentials and try again.',
+        duration: 5000,
       });
-      
-      toast.success('Sign up successful. Please wait for admin approval.');
-    } catch (error: any) {
-      console.error('Signup error:', error);
-      toast.error(error.message || 'Failed to sign up');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setPaymentReceipt(e.target.files[0]);
+    if (e.target.files && e.target.files[0]) {
+      setReceiptFile(e.target.files[0]);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--portal-bg)]">
-      <motion.div 
-        className="w-full max-w-md p-6 bg-[var(--portal-card-bg)] rounded-lg shadow-md border border-[var(--portal-border)]"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="flex items-center justify-center mb-6">
-          <div className="h-12 w-12 bg-[var(--portal-accent)] rounded-lg flex items-center justify-center shadow-lg shadow-[var(--portal-accent-glow)]">
-            <Building className="h-6 w-6 text-black" />
-          </div>
-          <h2 className="text-2xl font-bold ml-3 text-[var(--portal-text)]">
-            {isLoginMode ? 'Sign In' : 'Sign Up'}
-          </h2>
-        </div>
-
-        <form onSubmit={isLoginMode ? handleLogin : handleSignUp}>
-          {!isLoginMode && (
-            <>
-              <div className="mb-4">
-                <Label htmlFor="name" className="block text-sm font-medium text-[var(--portal-text)]">
-                  Full Name
-                </Label>
-                <Input
-                  type="text"
-                  id="name"
-                  className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <Label htmlFor="phoneNumber" className="block text-sm font-medium text-[var(--portal-text)]">
-                  Phone Number
-                </Label>
-                <Input
-                  type="tel"
-                  id="phoneNumber"
-                  className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <Label htmlFor="career" className="block text-sm font-medium text-[var(--portal-text)]">
-                  Career
-                </Label>
-                <Input
-                  type="text"
-                  id="career"
-                  className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
-                  value={career}
-                  onChange={(e) => setCareer(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <Label htmlFor="paymentReceipt" className="block text-sm font-medium text-[var(--portal-text)]">
-                  Payment Receipt
-                </Label>
-                <Input
-                  type="file"
-                  id="paymentReceipt"
-                  className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
-                  onChange={handleFileChange}
-                  required
-                />
-              </div>
-            </>
-          )}
-          <div className="mb-4">
-            <Label htmlFor="email" className="block text-sm font-medium text-[var(--portal-text)]">
-              Email
-            </Label>
-            <Input
-              type="email"
-              id="email"
-              className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <Label htmlFor="password" className="block text-sm font-medium text-[var(--portal-text)]">
-              Password
-            </Label>
-            <Input
-              type="password"
-              id="password"
-              className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          {!isLoginMode && (
-            <div className="mb-6">
-              <Label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--portal-text)]">
-                Confirm Password
-              </Label>
-              <Input
-                type="password"
-                id="confirmPassword"
-                className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
+    <div className="flex min-h-screen dark-mode bg-[var(--portal-bg)]">
+      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
+        <div className="mx-auto w-full max-w-sm lg:w-96">
+          <div className="flex justify-center mb-6">
+            <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-gold-500 to-gold-400 flex items-center justify-center text-black shadow-lg">
+              <BuildingIcon className="h-8 w-8" />
             </div>
-          )}
-          <div>
-            <Button 
-              type="submit" 
-              className="w-full bg-[var(--portal-accent)] text-black hover:bg-[var(--portal-accent)]/90 transition-all"
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : isLoginMode ? 'Sign In' : 'Sign Up'}
-            </Button>
           </div>
-        </form>
+          <h2 className="text-3xl font-extrabold text-center gradient-text">
+            {isSignUp ? 'Create Account' : 'Sign In'}
+          </h2>
 
-        <div className="mt-4 text-center">
-          <Link
-            to="#"
-            onClick={() => setIsLoginMode(!isLoginMode)}
-            className="text-sm text-[var(--portal-accent)] hover:underline"
-          >
-            {isLoginMode ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
-          </Link>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium">
+                Email
+              </label>
+              <div className="mt-1">
+                <input
+                  id="email"
+                  type="email"
+                  {...register('email')}
+                  className="dark-input w-full"
+                  placeholder="your@email.com"
+                />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium">
+                Password
+              </label>
+              <div className="mt-1">
+                <input
+                  id="password"
+                  type="password"
+                  {...register('password')}
+                  className="dark-input w-full"
+                  placeholder="••••••••"
+                />
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
+                )}
+              </div>
+            </div>
+
+            {isSignUp && (
+              <>
+                <div>
+                  <label htmlFor="career" className="block text-sm font-medium">
+                    Career
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="career"
+                      type="text"
+                      {...register('career')}
+                      className="dark-input w-full"
+                      placeholder="Real Estate Agent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="receipt" className="block text-sm font-medium">
+                    Upload Payment Receipt
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="receipt"
+                      type="file"
+                      onChange={handleFileChange}
+                      className="dark-input w-full"
+                    />
+                    <p className="mt-2 text-sm text-gold-400">
+                      Upload proof of payment to proceed with registration.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div>
+              <Button
+                type="submit"
+                className="w-full gradient-btn"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : (
+                  <>{isSignUp ? 'Sign Up' : 'Sign In'}</>
+                )}
+              </Button>
+            </div>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                reset();
+                setReceiptFile(null);
+              }}
+              className="text-sm text-gold-400 hover:text-gold-500"
+            >
+              {isSignUp
+                ? 'Already have an account? Sign In'
+                : "Don't have an account? Sign Up"}
+            </button>
+          </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

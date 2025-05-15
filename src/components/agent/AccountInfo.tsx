@@ -1,339 +1,226 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { createSlug } from '@/lib/formatters';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ExternalLink, Clipboard, Check } from 'lucide-react';
 
-// Define form schema
-const profileSchema = z.object({
-  phone_number: z.string().optional(),
-  career: z.string().min(1, 'Career information is required'),
-});
-
-type ProfileFormValues = z.infer<typeof profileSchema>;
-
-interface ListingLimit {
-  type: string;
-  value?: number;
-}
-
-interface UserProfile {
-  first_name: string | null;
-  last_name: string | null;
-  phone_number: string | null;
-  career: string | null;
-  listing_limit: ListingLimit | null;
-}
-
-interface AccountInfoProps {
-  listings: any[];
-}
-
-const AccountInfo = ({ listings }: AccountInfoProps) => {
+const AccountInfo = ({ listings }) => {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      phone_number: '',
-      career: '',
-    },
+  const [profile, setProfile] = useState(null);
+  const [listingLimit, setListingLimit] = useState({
+    type: 'month',
+    value: 5
   });
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user) return;
-      
-      setIsLoading(true);
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('first_name, last_name, phone_number, career, listing_limit')
-          .eq('id', user.id)
+          .select('*')
+          .eq('id', user?.id)
           .single();
-          
+
         if (error) throw error;
-        
-        // Safely parse the listing_limit JSON data
-        let listingLimit: ListingLimit | null = null;
-        
+        setProfile(data);
+
         if (data.listing_limit) {
-          // Handle different possible formats of listing_limit
-          if (typeof data.listing_limit === 'object') {
-            const limitData = data.listing_limit as Record<string, unknown>;
-            
-            if (limitData && 'type' in limitData) {
-              listingLimit = {
-                type: String(limitData.type || 'month'),
-                value: typeof limitData.value === 'number' ? limitData.value : 5
-              };
-            }
-          } else if (typeof data.listing_limit === 'string') {
-            try {
-              const parsed = JSON.parse(data.listing_limit);
-              if (parsed && typeof parsed === 'object') {
-                listingLimit = {
-                  type: String(parsed.type || 'month'),
-                  value: typeof parsed.value === 'number' ? parsed.value : 5
-                };
-              }
-            } catch (e) {
-              console.error('Error parsing listing_limit string:', e);
-              listingLimit = { type: 'month', value: 5 };
-            }
-          }
-          
-          // Fallback to default if parsing failed
-          if (!listingLimit) {
-            listingLimit = { type: 'month', value: 5 };
-          }
-        } else {
-          // Default value if listing_limit is null
-          listingLimit = { type: 'month', value: 5 };
+          setListingLimit(data.listing_limit);
         }
-        
-        setProfile({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          phone_number: data.phone_number,
-          career: data.career,
-          listing_limit: listingLimit
-        });
-        
-        form.reset({
-          phone_number: data.phone_number || '',
-          career: data.career || '',
-        });
       } catch (error) {
         console.error('Error fetching profile:', error);
-        toast.error('Failed to load profile information');
-      } finally {
-        setIsLoading(false);
+        toast.error('Failed to load account information');
       }
     };
-    
-    fetchProfile();
-  }, [user, form]);
 
-  const onSubmit = async (values: ProfileFormValues) => {
-    if (!user) return;
-    
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          phone_number: values.phone_number,
-          career: values.career,
-        })
-        .eq('id', user.id);
-        
-      if (error) throw error;
-      
-      toast.success('Profile updated successfully');
-      
-      // Update local state
-      setProfile(prev => 
-        prev ? { 
-          ...prev, 
-          phone_number: values.phone_number || null,
-          career: values.career 
-        } : null
-      );
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
-    } finally {
-      setIsSubmitting(false);
+    if (user) {
+      fetchProfile();
     }
-  };
-  
-  // Calculate usage metrics
-  const getListingUsageInfo = () => {
-    if (!profile || !profile.listing_limit) return null;
+  }, [user]);
+
+  const getUsagePercentage = () => {
+    if (listingLimit.type === 'unlimited') return 0;
     
-    const limit = profile.listing_limit;
-    
-    if (limit.type === 'unlimited') {
-      return {
-        current: listings.length,
-        max: 'Unlimited',
-        percent: 0,
-      };
-    }
-    
-    // Filter listings based on time period
+    let count = 0;
     const now = new Date();
-    let startDate;
     
-    switch (limit.type) {
+    switch (listingLimit.type) {
       case 'day':
-        startDate = new Date(now.setHours(0, 0, 0, 0));
+        count = listings.filter(l => {
+          const listingDate = new Date(l.created_at);
+          return listingDate.toDateString() === now.toDateString();
+        }).length;
         break;
       case 'week':
-        const day = now.getDay();
-        startDate = new Date(now.setDate(now.getDate() - day));
+        count = listings.filter(l => {
+          const listingDate = new Date(l.created_at);
+          const diffTime = Math.abs(now - listingDate);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays <= 7;
+        }).length;
         break;
       case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        count = listings.filter(l => {
+          const listingDate = new Date(l.created_at);
+          return (
+            listingDate.getMonth() === now.getMonth() &&
+            listingDate.getFullYear() === now.getFullYear()
+          );
+        }).length;
         break;
       case 'year':
-        startDate = new Date(now.getFullYear(), 0, 1);
+        count = listings.filter(l => {
+          const listingDate = new Date(l.created_at);
+          return listingDate.getFullYear() === now.getFullYear();
+        }).length;
         break;
       default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        return 0;
     }
     
-    const filteredListings = listings.filter(
-      listing => new Date(listing.created_at) >= startDate
-    );
-    
-    return {
-      current: filteredListings.length,
-      max: limit.value || 0,
-      percent: limit.value ? (filteredListings.length / limit.value) * 100 : 0,
-    };
+    return Math.min(Math.round((count / listingLimit.value) * 100), 100);
   };
-  
-  const usageInfo = getListingUsageInfo();
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-      </div>
-    );
-  }
+  const formatLimitType = (type) => {
+    switch (type) {
+      case 'day': return 'daily';
+      case 'week': return 'weekly';
+      case 'month': return 'monthly';
+      case 'year': return 'yearly';
+      case 'unlimited': return 'unlimited';
+      default: return type;
+    }
+  };
+
+  const getPublicProfileUrl = () => {
+    if (!profile || !profile.first_name || !profile.last_name) return '';
+    const slug = createSlug(`${profile.first_name} ${profile.last_name}`);
+    return `${window.location.origin}/${slug}`;
+  };
+
+  const handleCopyUrl = () => {
+    const url = getPublicProfileUrl();
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
-      <Card>
+    <>
+      <Card className="bg-[var(--portal-card-bg)] border-[var(--portal-border)] mb-6">
         <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-          <CardDescription>
-            View and update your profile information
-          </CardDescription>
+          <CardTitle className="text-gold-500">Account Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium">Name</h3>
-              <p className="text-gray-600 mt-1">
-                {profile?.first_name} {profile?.last_name}
-              </p>
-            </div>
-            
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="phone_number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+1 123 456 7890" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="career"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Career</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Real Estate Agent" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Update Profile
-                </Button>
-              </form>
-            </Form>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Listing Information</CardTitle>
-          <CardDescription>
-            Your listing limits and usage
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium">Listing Plan</h3>
-              <p className="text-gray-600 mt-1">
-                {profile?.listing_limit?.type === 'unlimited'
-                  ? 'Unlimited listings'
-                  : `${profile?.listing_limit?.value || 'N/A'} listings per ${profile?.listing_limit?.type || 'month'}`}
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="font-medium">Total Listings</h3>
-              <p className="text-gray-600 mt-1">{listings.length} listings created</p>
-            </div>
-            
-            {usageInfo && profile?.listing_limit?.type !== 'unlimited' && (
-              <div>
-                <h3 className="font-medium">Current Usage ({profile?.listing_limit?.type})</h3>
-                <div className="mt-2">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>{usageInfo.current} of {usageInfo.max}</span>
-                    <span>{Math.round(usageInfo.percent)}%</span>
+          {profile ? (
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+                <Avatar className="w-24 h-24 border-2 border-gold-500">
+                  <div className="bg-gold-900 text-white w-full h-full flex items-center justify-center text-3xl font-bold">
+                    {profile.first_name?.charAt(0) || ''}{profile.last_name?.charAt(0) || ''}
                   </div>
-                  <div className="h-2 bg-gray-200 rounded-full">
-                    <div
-                      className={`h-2 rounded-full ${
-                        usageInfo.percent > 90 ? 'bg-red-500' : 
-                        usageInfo.percent > 70 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
-                      style={{ width: `${Math.min(100, usageInfo.percent)}%` }}
-                    />
+                </Avatar>
+                
+                <div>
+                  <h3 className="text-xl font-bold mb-1">
+                    {profile.first_name} {profile.last_name}
+                  </h3>
+                  {profile.career && (
+                    <p className="text-[var(--portal-text-secondary)] mb-2">
+                      {profile.career}
+                    </p>
+                  )}
+                  {profile.phone_number && (
+                    <p className="text-[var(--portal-text-secondary)]">
+                      Phone: {profile.phone_number}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Public Profile URL */}
+              <div className="bg-[var(--portal-bg)] border border-[var(--portal-border)] rounded-md p-4">
+                <h4 className="text-sm font-semibold mb-2 text-gold-500">Your Public Profile URL</h4>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex-1 text-[var(--portal-text-secondary)] text-sm font-mono bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded px-3 py-2 truncate">
+                    {getPublicProfileUrl()}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleCopyUrl}
+                      className="whitespace-nowrap"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4 mr-1" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Clipboard className="h-4 w-4 mr-1" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="whitespace-nowrap"
+                      asChild
+                    >
+                      <Link to={`/${createSlug(`${profile.first_name} ${profile.last_name}`)}`} target="_blank">
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        View
+                      </Link>
+                    </Button>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+              
+              <div>
+                <h4 className="font-semibold mb-2 text-gold-500">Listing Limit</h4>
+                <div className="bg-[var(--portal-bg)] border border-[var(--portal-border)] rounded-md p-4 space-y-3">
+                  {listingLimit.type === 'unlimited' ? (
+                    <p className="text-[var(--portal-text)]">You have unlimited listing privileges.</p>
+                  ) : (
+                    <>
+                      <p className="text-[var(--portal-text-secondary)]">
+                        Your {formatLimitType(listingLimit.type)} limit: 
+                        <span className="font-semibold text-[var(--portal-text)]"> {listingLimit.value} listings</span>
+                      </p>
+                      <div className="w-full bg-[var(--portal-bg)]border border-[var(--portal-border)] rounded-full h-2.5">
+                        <div 
+                          className="bg-gold-500 h-2.5 rounded-full" 
+                          style={{ width: `${getUsagePercentage()}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-end">
+                        <span className="text-xs text-[var(--portal-text-secondary)]">
+                          {getUsagePercentage()}% used
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gold-500"></div>
+            </div>
+          )}
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 };
 

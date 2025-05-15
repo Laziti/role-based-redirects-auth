@@ -16,6 +16,8 @@ import AgentDashboard from "./pages/AgentDashboard";
 import PendingApproval from "./pages/PendingApproval";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoadingScreen from "./components/LoadingScreen";
+import AgentPublicProfile from "./pages/AgentPublicProfile";
+import ListingDetail from "./pages/ListingDetail";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +80,9 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      {/* Public Agent Profile Routes */}
+      <Route path="/:agentSlug" element={<AgentPublicProfile />} />
+      <Route path="/:agentSlug/listing/:listingId" element={<ListingDetail />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

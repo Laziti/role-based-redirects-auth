@@ -57,8 +57,8 @@ const Auth = () => {
           formData.append('receipt', receiptFile);
         }
         
-        // Call the signUp function with form data
-        await signUp(data.email, data.password, data); // Fixed error: removed third argument
+        // Fix: signUp expects only 2 arguments
+        await signUp(data.email, data.password);
         toast({
           title: 'Account created',
           description: 'Your account is pending approval.',

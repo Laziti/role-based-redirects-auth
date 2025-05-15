@@ -50,11 +50,10 @@ export const AdminSidebar = () => {
                   }`
                 }
               >
-                <div className={({ isActive }) => 
-                  `p-1.5 rounded-md ${
-                    isActive ? 'bg-gold-500 text-black' : 'bg-[var(--portal-card-bg)]'
-                  }`
-                }>
+                {/* Fix: Use a function component for conditional classes instead of a function returning a string */}
+                <div className={`p-1.5 rounded-md ${
+                  location.pathname === item.path ? 'bg-gold-500 text-black' : 'bg-[var(--portal-card-bg)]'
+                }`}>
                   {item.icon}
                 </div>
                 <span>{item.label}</span>
@@ -104,9 +103,8 @@ export const AdminSidebar = () => {
               }`
             }
           >
-            <div className={({ isActive }) => 
-              `p-1.5 rounded-lg ${isActive ? 'bg-gold-500/20' : ''}`
-            }>
+            {/* Fix: Use a static string class instead of a function returning a string */}
+            <div className={`p-1.5 rounded-lg ${location.pathname === item.path ? 'bg-gold-500/20' : ''}`}>
               {item.icon}
             </div>
             <span className="text-xs mt-1 font-medium">{item.label}</span>

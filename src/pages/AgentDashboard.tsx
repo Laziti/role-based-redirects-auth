@@ -9,7 +9,8 @@ import AgentSidebar from '@/components/agent/AgentSidebar';
 import ListingTable from '@/components/agent/ListingTable';
 import CreateListingForm from '@/components/agent/CreateListingForm';
 import AccountInfo from '@/components/agent/AccountInfo';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Briefcase } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import '@/styles/portal-theme.css';
 
 const AgentDashboard = () => {
@@ -69,6 +70,26 @@ const AgentDashboard = () => {
     }
   };
 
+  // Empty listings state component
+  const EmptyListingsState = () => (
+    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+      <div className="h-16 w-16 bg-gold-500/10 rounded-full flex items-center justify-center mb-6">
+        <Briefcase className="h-8 w-8 text-gold-500" />
+      </div>
+      <h3 className="text-xl font-semibold mb-2 text-[var(--portal-text)]">No listings found</h3>
+      <p className="text-[var(--portal-text-secondary)] mb-6 max-w-md">
+        You haven't created any listings yet.
+      </p>
+      <Button 
+        onClick={() => setActiveTab('create')} 
+        className="bg-gold-500 hover:bg-gold-600 text-black"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Create Your First Listing
+      </Button>
+    </div>
+  );
+
   return (
     <div className="flex min-h-screen portal-layout">
       <AgentSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -101,20 +122,24 @@ const AgentDashboard = () => {
               className="portal-animate-in"
             >
               <div className="portal-card mb-6">
-                <h2 className="portal-title">My Properties</h2>
-                <p className="portal-subtitle">Manage your property listings</p>
+                <h2 className="portal-title text-[var(--portal-text)] text-2xl font-bold">My Properties</h2>
+                <p className="portal-subtitle text-[var(--portal-text-secondary)]">Manage your property listings</p>
               </div>
               
               {loading ? (
                 <div className="flex justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-[var(--portal-accent)]" />
+                  <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
                 </div>
-              ) : (
+              ) : listings.length > 0 ? (
                 <div className="portal-card">
                   <ListingTable 
                     listings={listings} 
                     onDelete={handleDeleteListing} 
                   />
+                </div>
+              ) : (
+                <div className="portal-card">
+                  <EmptyListingsState />
                 </div>
               )}
             </motion.div>

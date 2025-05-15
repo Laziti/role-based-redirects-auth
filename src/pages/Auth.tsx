@@ -1,362 +1,227 @@
-import React, { useState } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
-import { User, LogIn, UserPlus, Upload, Check, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Building } from 'lucide-react';
+import { motion } from 'framer-motion';
 import '@/styles/portal-theme.css';
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
-
-const signupSchema = z.object({
-  fullName: z.string().min(2, 'Name must be at least 2 characters'),
-  phone: z.string().min(6, 'Phone number must be at least 6 characters'),
-  career: z.string().min(2, 'Career must be at least 2 characters'),
-  email: z.string().email(),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
-
 const Auth = () => {
-  const [authType, setAuthType] = useState<string>('login');
-  const [loading, setLoading] = useState(false);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { user, userRole, userStatus, signIn, signUp, loading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [career, setCareer] = useState('');
+  const [paymentReceipt, setPaymentReceipt] = useState<File | null>(null);
+  const [isLoginMode, setIsLoginMode] = useState(true);
 
-  const loginForm = useForm({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
-
-  const signupForm = useForm({
-    resolver: zodResolver(signupSchema),
-    defaultValues: {
-      fullName: '',
-      phone: '',
-      career: '',
-      email: '',
-      password: '',
-    },
-  });
-
-  const onLoginSubmit = async (data) => {
-    setLoading(true);
-    try {
-      const { error } = await signIn(data.email, data.password);
-      if (error) {
-        toast.error(error.message || 'Failed to sign in');
-      } else {
-        toast.success('Signed in successfully');
-        // Navigation is handled in AuthContext after successful login
+  // Redirect authenticated users to appropriate portal
+  useEffect(() => {
+    if (user && userRole) {
+      if (userRole === 'super_admin') {
+        navigate('/admin');
+      } else if (userRole === 'agent') {
+        if (userStatus === 'approved') {
+          navigate('/agent');
+        } else {
+          navigate('/pending');
+        }
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error('Failed to sign in. Please check your credentials and try again.');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [user, userRole, userStatus, navigate]);
 
-  const onSignupSubmit = async (data) => {
-    if (!receiptFile) {
-      toast.error('Please upload payment receipt');
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
-    setLoading(true);
     try {
-      const { error } = await signUp(data.email, data.password);
+      await signIn(email, password);
+      // Navigation will be handled by the useEffect above
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Failed to sign in');
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (!email || !password || !confirmPassword || !name || !phoneNumber || !career || !paymentReceipt) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    try {
+      await signUp(email, password, {
+        name,
+        phone: phoneNumber,
+        career,
+        receipt_path: 'pending_upload'
+      });
       
-      if (error) {
-        toast.error(error.message || 'Failed to sign up');
-      } else {
-        toast.success('Signup successful! Please wait for admin approval.');
-        navigate('/pending');
-      }
-    } catch (error) {
+      toast.success('Sign up successful. Please wait for admin approval.');
+    } catch (error: any) {
       console.error('Signup error:', error);
-      toast.error('Failed to sign up. Please try again.');
-    } finally {
-      setLoading(false);
+      toast.error(error.message || 'Failed to sign up');
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setReceiptFile(e.target.files[0]);
-    }
-  };
-
-  const containerAnimation = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: 0.1,
-      }
-    }
-  };
-
-  const itemAnimation = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 24
-      }
+    if (e.target.files && e.target.files.length > 0) {
+      setPaymentReceipt(e.target.files[0]);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row portal-layout">
-      {/* Left panel (Hero) */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#0F0F0F] to-[#1A1A1A] p-12 items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-md"
-        >
-          <div className="h-16 w-16 bg-[var(--portal-accent)] rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-[var(--portal-accent-glow)]">
-            <Building className="h-8 w-8 text-black" />
+    <div className="min-h-screen flex items-center justify-center bg-[var(--portal-bg)]">
+      <motion.div 
+        className="w-full max-w-md p-6 bg-[var(--portal-card-bg)] rounded-lg shadow-md border border-[var(--portal-border)]"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex items-center justify-center mb-6">
+          <div className="h-12 w-12 bg-[var(--portal-accent)] rounded-lg flex items-center justify-center shadow-lg shadow-[var(--portal-accent-glow)]">
+            <Building className="h-6 w-6 text-black" />
           </div>
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-[var(--portal-text)] to-[var(--portal-accent)] bg-clip-text text-transparent">
-            Real Estate Listing Platform
-          </h1>
-          <p className="text-[var(--portal-text-secondary)] text-lg mb-8">
-            Create, manage, and share your property listings with our premium platform designed for real estate professionals.
-          </p>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="bg-[var(--portal-accent)]/10 p-2 rounded-lg mt-1">
-                <Check className="h-5 w-5 text-[var(--portal-accent)]" />
+          <h2 className="text-2xl font-bold ml-3 text-[var(--portal-text)]">
+            {isLoginMode ? 'Sign In' : 'Sign Up'}
+          </h2>
+        </div>
+
+        <form onSubmit={isLoginMode ? handleLogin : handleSignUp}>
+          {!isLoginMode && (
+            <>
+              <div className="mb-4">
+                <Label htmlFor="name" className="block text-sm font-medium text-[var(--portal-text)]">
+                  Full Name
+                </Label>
+                <Input
+                  type="text"
+                  id="name"
+                  className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
-              <div>
-                <h3 className="font-medium text-[var(--portal-text)]">Trusted by Professionals</h3>
-                <p className="text-[var(--portal-text-secondary)]">Join hundreds of real estate agents using our platform</p>
+              <div className="mb-4">
+                <Label htmlFor="phoneNumber" className="block text-sm font-medium text-[var(--portal-text)]">
+                  Phone Number
+                </Label>
+                <Input
+                  type="tel"
+                  id="phoneNumber"
+                  className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  required
+                />
               </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="bg-[var(--portal-accent)]/10 p-2 rounded-lg mt-1">
-                <Check className="h-5 w-5 text-[var(--portal-accent)]" />
+              <div className="mb-4">
+                <Label htmlFor="career" className="block text-sm font-medium text-[var(--portal-text)]">
+                  Career
+                </Label>
+                <Input
+                  type="text"
+                  id="career"
+                  className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+                  value={career}
+                  onChange={(e) => setCareer(e.target.value)}
+                  required
+                />
               </div>
-              <div>
-                <h3 className="font-medium text-[var(--portal-text)]">Simple & Direct</h3>
-                <p className="text-[var(--portal-text-secondary)]">Create listings in minutes and share with clients</p>
+              <div className="mb-4">
+                <Label htmlFor="paymentReceipt" className="block text-sm font-medium text-[var(--portal-text)]">
+                  Payment Receipt
+                </Label>
+                <Input
+                  type="file"
+                  id="paymentReceipt"
+                  className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+                  onChange={handleFileChange}
+                  required
+                />
               </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="bg-[var(--portal-accent)]/10 p-2 rounded-lg mt-1">
-                <Check className="h-5 w-5 text-[var(--portal-accent)]" />
-              </div>
-              <div>
-                <h3 className="font-medium text-[var(--portal-text)]">Affordable Solution</h3>
-                <p className="text-[var(--portal-text-secondary)]">Only 5000 birr/month for up to 100 listings</p>
-              </div>
-            </div>
+            </>
+          )}
+          <div className="mb-4">
+            <Label htmlFor="email" className="block text-sm font-medium text-[var(--portal-text)]">
+              Email
+            </Label>
+            <Input
+              type="email"
+              id="email"
+              className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
-        </motion.div>
-      </div>
+          <div className="mb-6">
+            <Label htmlFor="password" className="block text-sm font-medium text-[var(--portal-text)]">
+              Password
+            </Label>
+            <Input
+              type="password"
+              id="password"
+              className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          {!isLoginMode && (
+            <div className="mb-6">
+              <Label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--portal-text)]">
+                Confirm Password
+              </Label>
+              <Input
+                type="password"
+                id="confirmPassword"
+                className="mt-1 w-full rounded-md shadow-sm bg-[var(--portal-input-bg)] border-[var(--portal-border)] text-[var(--portal-text)] focus:border-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+          )}
+          <div>
+            <Button 
+              type="submit" 
+              className="w-full bg-[var(--portal-accent)] text-black hover:bg-[var(--portal-accent)]/90 transition-all"
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : isLoginMode ? 'Sign In' : 'Sign Up'}
+            </Button>
+          </div>
+        </form>
 
-      {/* Right panel (Authentication) */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12 md:py-0">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
-        >
-          <motion.div className="mb-8 text-center">
-            <h2 className="text-3xl font-bold text-[var(--portal-accent)]">
-              {authType === 'login' ? 'Welcome Back' : 'Create Account'}
-            </h2>
-            <p className="mt-2 text-[var(--portal-text-secondary)]">
-              {authType === 'login' ? 'Sign in to your account to continue' : 'Sign up as a new agent to get started'}
-            </p>
-          </motion.div>
-
-          <Tabs value={authType} onValueChange={setAuthType} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="login" className="data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-black">
-                <LogIn className="mr-2 h-4 w-4" />
-                Login
-              </TabsTrigger>
-              <TabsTrigger value="signup" className="data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-black">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Sign Up
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="login" className="mt-0">
-              <form
-                onSubmit={loginForm.handleSubmit(onLoginSubmit)}
-                className="space-y-6"
-                key="login-form"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="you@example.com" 
-                    className="portal-input"
-                    {...loginForm.register('email')} 
-                  />
-                  {loginForm.formState.errors.email && (
-                    <p className="text-red-500 text-sm">{loginForm.formState.errors.email.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="••••••••" 
-                    className="portal-input"
-                    {...loginForm.register('password')} 
-                  />
-                  {loginForm.formState.errors.password && (
-                    <p className="text-red-500 text-sm">{loginForm.formState.errors.password.message}</p>
-                  )}
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="portal-button w-full"
-                  disabled={loading}
-                >
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup" className="mt-0">
-              <form
-                onSubmit={signupForm.handleSubmit(onSignupSubmit)}
-                className="space-y-4"
-                key="signup-form"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input 
-                    id="fullName" 
-                    placeholder="John Doe" 
-                    className="portal-input"
-                    {...signupForm.register('fullName')} 
-                  />
-                  {signupForm.formState.errors.fullName && (
-                    <p className="text-red-500 text-sm">{signupForm.formState.errors.fullName.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input 
-                    id="phone" 
-                    placeholder="+1234567890" 
-                    className="portal-input"
-                    {...signupForm.register('phone')} 
-                  />
-                  {signupForm.formState.errors.phone && (
-                    <p className="text-red-500 text-sm">{signupForm.formState.errors.phone.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="career">Career</Label>
-                  <Input 
-                    id="career" 
-                    placeholder="Real Estate Agent" 
-                    className="portal-input"
-                    {...signupForm.register('career')} 
-                  />
-                  {signupForm.formState.errors.career && (
-                    <p className="text-red-500 text-sm">{signupForm.formState.errors.career.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email-signup">Email</Label>
-                  <Input 
-                    id="email-signup" 
-                    type="email" 
-                    placeholder="you@example.com" 
-                    className="portal-input"
-                    {...signupForm.register('email')} 
-                  />
-                  {signupForm.formState.errors.email && (
-                    <p className="text-red-500 text-sm">{signupForm.formState.errors.email.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password-signup">Password</Label>
-                  <Input 
-                    id="password-signup" 
-                    type="password" 
-                    placeholder="••••••••" 
-                    className="portal-input"
-                    {...signupForm.register('password')} 
-                  />
-                  {signupForm.formState.errors.password && (
-                    <p className="text-red-500 text-sm">{signupForm.formState.errors.password.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="receipt">Upload Payment Receipt</Label>
-                  <div className="border-2 border-dashed border-[var(--portal-border)] rounded-lg p-4 cursor-pointer hover:border-[var(--portal-accent)] transition-colors">
-                    <label htmlFor="receipt" className="flex flex-col items-center justify-center cursor-pointer">
-                      <Upload className="h-8 w-8 text-[var(--portal-text-secondary)] mb-2" />
-                      <span className="text-sm text-[var(--portal-text-secondary)]">
-                        {receiptFile ? receiptFile.name : 'Click to upload payment proof'}
-                      </span>
-                      <input 
-                        id="receipt" 
-                        type="file" 
-                        accept="image/*,.pdf" 
-                        className="hidden" 
-                        onChange={handleFileChange} 
-                      />
-                    </label>
-                  </div>
-                  {!receiptFile && (
-                    <p className="text-[var(--portal-text-secondary)] text-sm">
-                      Upload proof of payment (5000 birr/month)
-                    </p>
-                  )}
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="portal-button w-full" 
-                  disabled={loading}
-                >
-                  {loading ? 'Signing up...' : 'Sign Up'}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </motion.div>
-      </div>
+        <div className="mt-4 text-center">
+          <Link
+            to="#"
+            onClick={() => setIsLoginMode(!isLoginMode)}
+            className="text-sm text-[var(--portal-accent)] hover:underline"
+          >
+            {isLoginMode ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
+          </Link>
+        </div>
+      </motion.div>
     </div>
   );
 };

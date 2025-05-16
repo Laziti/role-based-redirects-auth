@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { createSlug } from '@/lib/formatters';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import AdminSidebar from '@/components/AdminSidebar';
@@ -125,7 +125,10 @@ const AdminPendingSignupsPage = () => {
       setPendingUsers(pendingSignups);
     } catch (error) {
       console.error('Error fetching pending users:', error);
-      toast.error('Failed to load pending users');
+      toast.error({
+        title: 'Error',
+        description: 'Failed to load pending users'
+      });
     } finally {
       setLoading(false);
     }
@@ -144,7 +147,10 @@ const AdminPendingSignupsPage = () => {
       if (profileFetchError) throw profileFetchError;
       
       if (!profileData.first_name || !profileData.last_name) {
-        toast.error('User has incomplete profile information');
+        toast.error({
+          title: 'Error',
+          description: 'User has incomplete profile information'
+        });
         return;
       }
       
@@ -164,10 +170,16 @@ const AdminPendingSignupsPage = () => {
 
       // Remove the approved user from the list and show success message
       setPendingUsers(prev => prev.filter(user => user.id !== userId));
-      toast.success('User approved successfully');
+      toast.success({
+        title: 'Success',
+        description: 'User approved successfully'
+      });
     } catch (error: any) {
       console.error('Error approving user:', error);
-      toast.error(`Error approving user: ${error.message}`);
+      toast.error({
+        title: 'Error approving user',
+        description: error.message
+      });
     } finally {
       setApproving(null);
     }
@@ -194,10 +206,16 @@ const AdminPendingSignupsPage = () => {
 
       // Remove from state
       setPendingUsers(prev => prev.filter(user => user.id !== userId));
-      toast.success('User rejected and removed');
+      toast.success({
+        title: 'Success',
+        description: 'User rejected and removed'
+      });
     } catch (error: any) {
       console.error('Error rejecting user:', error);
-      toast.error(`Error rejecting user: ${error.message}`);
+      toast.error({
+        title: 'Error rejecting user',
+        description: error.message
+      });
     } finally {
       setRejecting(null);
     }

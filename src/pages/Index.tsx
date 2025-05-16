@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowRight, CheckCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle, Link as LinkIcon, Home, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
@@ -28,9 +28,19 @@ const Index = () => {
       <section className="min-h-screen relative flex items-center justify-center">
         {/* Enhanced Background elements */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Main gradient circles */}
+          {/* Main gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-radial from-gold-500/5 to-transparent opacity-70"></div>
+          
+          {/* Grid pattern overlay */}
+          <div className="absolute inset-0" style={{ 
+            backgroundImage: 'linear-gradient(var(--portal-border) 1px, transparent 1px), linear-gradient(90deg, var(--portal-border) 1px, transparent 1px)', 
+            backgroundSize: '40px 40px',
+            opacity: 0.1
+          }}></div>
+          
+          {/* Animated gradient circles */}
           <motion.div 
-            className="absolute w-[800px] h-[800px] rounded-full bg-gold-500/5 -top-[400px] left-1/2 transform -translate-x-1/2"
+            className="absolute w-[1000px] h-[1000px] rounded-full bg-gradient-to-br from-gold-500/10 to-transparent -top-[400px] left-1/2 transform -translate-x-1/2 blur-3xl"
             animate={{ 
               scale: [1, 1.1, 1],
               opacity: [0.5, 0.3, 0.5],
@@ -41,8 +51,9 @@ const Index = () => {
               ease: "easeInOut"
             }}
           />
+          
           <motion.div 
-            className="absolute w-[600px] h-[600px] rounded-full bg-gold-500/5 -bottom-[300px] left-1/2 transform -translate-x-1/2"
+            className="absolute w-[800px] h-[800px] rounded-full bg-gradient-to-tr from-gold-500/5 to-transparent -bottom-[300px] left-1/2 transform -translate-x-1/2 blur-3xl"
             animate={{
               scale: [1, 1.2, 1],
               opacity: [0.3, 0.5, 0.3],
@@ -55,14 +66,15 @@ const Index = () => {
             }}
           />
           
-          {/* Floating elements */}
+          {/* Floating elements with 3D effect */}
+          <div className="absolute inset-0">
           {/* Left side floating elements */}
           <motion.div
-            className="absolute w-16 h-16 rounded-full bg-gold-500/10 top-20 left-[15%]"
+              className="absolute w-32 h-32 rounded-2xl bg-gradient-to-br from-gold-500/20 to-gold-500/5 top-[15%] left-[10%] backdrop-blur-sm border border-gold-500/10"
+              style={{ transform: 'perspective(1000px) rotateX(10deg) rotateY(-10deg)' }}
             animate={{ 
               y: [0, -30, 0],
-              x: [0, 20, 0],
-              rotate: [0, 45, 0]
+                rotateZ: [0, 5, 0],
             }}
             transition={{
               duration: 12,
@@ -70,78 +82,41 @@ const Index = () => {
               ease: "easeInOut"
             }}
           />
+            
           <motion.div
-            className="absolute w-24 h-24 rounded-lg bg-gold-500/8 top-1/3 left-[10%] rotate-12"
+              className="absolute w-20 h-20 rounded-xl bg-gradient-to-tr from-gold-500/10 to-transparent bottom-[25%] left-[15%] backdrop-blur-sm border border-gold-500/10"
+              style={{ transform: 'perspective(1000px) rotateX(-5deg) rotateY(10deg)' }}
             animate={{
-              y: [0, 50, 0],
-              rotate: [12, -12, 12]
+                y: [0, 40, 0],
+                rotateZ: [0, -3, 0],
             }}
             transition={{
               duration: 18,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: 3
-            }}
-          />
-          <motion.div
-            className="absolute w-14 h-14 rounded-xl bg-gold-500/10 bottom-1/4 left-[20%]"
-            animate={{
-              scale: [1, 1.3, 1],
-              y: [0, -40, 0],
-              rotate: [0, 180, 360]
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "easeInOut",
               delay: 2
-            }}
-          />
-          <motion.div
-            className="absolute w-10 h-10 rounded-full bg-gold-500/15 bottom-[15%] left-[30%]"
-            animate={{
-              x: [0, 30, 0],
-              y: [0, 20, 0]
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1.5
             }}
           />
           
           {/* Right side floating elements */}
           <motion.div
-            className="absolute w-20 h-20 rounded-lg bg-gold-500/10 bottom-32 right-[20%]"
+              className="absolute w-24 h-24 rounded-2xl bg-gradient-to-bl from-gold-500/15 to-transparent top-[20%] right-[12%] backdrop-blur-sm border border-gold-500/10"
+              style={{ transform: 'perspective(1000px) rotateX(5deg) rotateY(10deg)' }}
             animate={{
-              y: [0, 40, 0],
-              x: [0, -30, 0],
-              rotate: [0, -45, 0]
+                y: [0, 30, 0],
+                rotateZ: [0, -5, 0],
             }}
             transition={{
               duration: 15,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: 2
-            }}
-          />
-          <motion.div
-            className="absolute w-12 h-12 rounded-xl bg-gold-500/10 top-1/2 right-[15%]"
-            animate={{
-              scale: [1, 1.2, 1],
-              rotate: [0, 90, 0]
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut",
               delay: 1
             }}
           />
+          </div>
         </div>
         
-        <div className="container mx-auto px-6 lg:px-8 relative z-10">
+        <div className="container mx-auto px-6 lg:px-8 relative z-10 py-20">
           <div className="max-w-3xl mx-auto">
             <motion.div 
               className="text-center"
@@ -150,44 +125,55 @@ const Index = () => {
               transition={{ duration: 0.8 }}
             >
               <motion.div 
-                className="inline-block mb-4 px-4 py-1.5 rounded-full bg-gold-500/10 border border-gold-500/20 text-gold-500 font-medium text-sm"
+                className="inline-block mb-6 px-6 py-2 rounded-full bg-gradient-to-r from-gold-500/20 to-gold-500/10 border border-gold-500/20 backdrop-blur-sm"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
+                whileHover={{ scale: 1.05 }}
               >
-                The Ultimate Real Estate Platform
+                <span className="text-gold-400 font-semibold text-sm">The Ultimate Real Estate Platform</span>
               </motion.div>
               
               <motion.h1 
-                className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6"
+                className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
               >
-                Elevate Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold-500 to-gold-300">Real Estate</span> Business
+                Your Name. Your Listings.{" "}
+                <span className="relative">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold-500 to-gold-300">Your Clients.</span>
+                  <motion.span 
+                    className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-gold-500 to-gold-300 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 0.8, delay: 1.2 }}
+                  ></motion.span>
+                </span>
               </motion.h1>
               
               <motion.p 
-                className="text-lg md:text-xl text-[var(--portal-text-secondary)] mb-8 max-w-2xl mx-auto"
+                className="text-xl text-[var(--portal-text-secondary)] mb-10 max-w-2xl mx-auto leading-relaxed"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 }}
               >
-                Create beautiful property listings and share them through your personalized profile. Connect directly with clients and grow your business with our professional tools.
+                Create your profile, list under your name, and share your link with clients.
               </motion.p>
               
               <motion.div 
-                className="flex flex-col sm:flex-row gap-4 justify-center mb-8"
+                className="flex flex-col sm:flex-row gap-6 justify-center mb-10"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.8 }}
               >
                 {!user ? (
                   <>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                   <Link to="/auth">
                     <Button 
                       size="lg" 
-                        className="bg-gold-500 hover:bg-gold-600 text-black px-8 rounded-lg shadow-lg hover:shadow-gold-500/20 transition-all duration-300 w-full sm:w-auto"
+                        className="bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-600 hover:to-gold-500 text-black px-10 py-6 rounded-xl shadow-xl shadow-gold-500/20 hover:shadow-gold-500/30 transition-all duration-300 w-full sm:w-auto font-semibold text-base"
                         onClick={() => {
                           localStorage.setItem('authMode', 'signup');
                         }}
@@ -196,11 +182,14 @@ const Index = () => {
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>
+                  </motion.div>
+                  
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                     <Link to="/auth">
                       <Button 
                         size="lg" 
                         variant="outline"
-                        className="border-gold-500 text-gold-500 hover:bg-gold-500/10 px-8 rounded-lg transition-all duration-300 w-full sm:w-auto"
+                        className="border-2 border-gold-500 text-gold-500 hover:bg-gold-500/10 px-10 py-6 rounded-xl transition-all duration-300 w-full sm:w-auto font-semibold text-base"
                         onClick={() => {
                           localStorage.setItem('authMode', 'signin');
                         }}
@@ -208,31 +197,49 @@ const Index = () => {
                         Sign In
                       </Button>
                     </Link>
+                  </motion.div>
                   </>
                 ) : (
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                   <Button 
                     onClick={() => userRole === 'super_admin' ? navigate('/admin') : navigate('/agent')}
-                    className="bg-gold-500 hover:bg-gold-600 text-black px-8 rounded-lg shadow-lg hover:shadow-gold-500/20 transition-all duration-300"
+                      className="bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-600 hover:to-gold-500 text-black px-10 py-6 rounded-xl shadow-xl shadow-gold-500/20 hover:shadow-gold-500/30 transition-all duration-300 font-semibold text-base"
                   >
                     Go to Dashboard
                   </Button>
+                  </motion.div>
                 )}
               </motion.div>
               
               <motion.div 
-                className="flex items-center justify-center gap-8 text-[var(--portal-text-secondary)]"
+                className="flex flex-wrap justify-center gap-4 text-[var(--portal-text-secondary)]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 1, delay: 1 }}
               >
-                <div className="flex items-center">
-                  <CheckCircle className="h-5 w-5 text-gold-500 mr-2" />
-                  <span>5000 birr/month</span>
-                </div>
-                <div className="flex items-center">
-                  <CheckCircle className="h-5 w-5 text-gold-500 mr-2" />
-                  <span>100 listings/month</span>
-                </div>
+                <motion.div 
+                  className="flex items-center px-5 py-2 rounded-full bg-gold-500/5 border border-gold-500/10"
+                  whileHover={{ y: -3, backgroundColor: 'rgba(255, 215, 0, 0.1)' }}
+                >
+                  <LinkIcon className="h-4 w-4 text-gold-500 mr-2" />
+                  <span className="font-medium text-sm">Personalized Agent Link</span>
+                </motion.div>
+                
+                <motion.div 
+                  className="flex items-center px-5 py-2 rounded-full bg-gold-500/5 border border-gold-500/10"
+                  whileHover={{ y: -3, backgroundColor: 'rgba(255, 215, 0, 0.1)' }}
+                >
+                  <Home className="h-4 w-4 text-gold-500 mr-2" />
+                  <span className="font-medium text-sm">100 Listings/6 Month</span>
+                </motion.div>
+                
+                <motion.div 
+                  className="flex items-center px-5 py-2 rounded-full bg-gold-500/5 border border-gold-500/10"
+                  whileHover={{ y: -3, backgroundColor: 'rgba(255, 215, 0, 0.1)' }}
+                >
+                  <DollarSign className="h-4 w-4 text-gold-500 mr-2" />
+                  <span className="font-medium text-sm">5000 ETB/6 Month</span>
+                </motion.div>
               </motion.div>
             </motion.div>
           </div>

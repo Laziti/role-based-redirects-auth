@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check as CheckIcon, Building as BuildingIcon, ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Check as CheckIcon, Building as BuildingIcon, ArrowLeft, Mail, Lock, User, Phone, Briefcase, FileText } from 'lucide-react';
+import { toast } from '@/lib/toast';
 import { supabase } from '@/integrations/supabase/client';
+import { motion } from 'framer-motion';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -31,7 +32,6 @@ const Auth = () => {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const { signIn, signUp, user, userRole } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   // Check localStorage for authMode on component mount
   useEffect(() => {
@@ -74,11 +74,9 @@ const Auth = () => {
       if (isSignUp) {
         // Validate receipt file
         if (!receiptFile) {
-          toast({
-            variant: 'destructive',
+          toast.error({
             title: 'Missing receipt',
-            description: 'Please upload a payment receipt to continue.',
-            duration: 5000,
+            description: 'Please upload a payment receipt to continue.'
           });
           setIsLoading(false);
           return;
@@ -137,10 +135,9 @@ const Auth = () => {
             
           if (profileError) throw profileError;
         
-        toast({
+        toast.success({
           title: 'Account created',
-          description: 'Your account is pending approval.',
-          duration: 5000,
+          description: 'Your account is pending approval.'
         });
         reset();
         navigate('/pending');
@@ -159,19 +156,16 @@ const Auth = () => {
           navigate('/');
         }
         
-        toast({
+        toast.success({
           title: 'Welcome back!',
-          description: 'You have successfully signed in.',
-          duration: 3000,
+          description: 'You have successfully signed in.'
         });
       }
     } catch (error: any) {
       console.error('Authentication error:', error);
-      toast({
-        variant: 'destructive',
+      toast.error({
         title: 'Authentication failed',
-        description: error.message || 'Please check your credentials and try again.',
-        duration: 5000,
+        description: error.message || 'Please check your credentials and try again.'
       });
     } finally {
       setIsLoading(false);
@@ -183,11 +177,9 @@ const Auth = () => {
       const file = e.target.files[0];
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast({
-          variant: 'destructive',
+        toast.error({
           title: 'File too large',
-          description: 'The receipt file must be less than 5MB.',
-          duration: 5000,
+          description: 'The receipt file must be less than 5MB.'
         });
         return;
       }
@@ -195,166 +187,299 @@ const Auth = () => {
       // Check file type (image or PDF)
       const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
       if (!validTypes.includes(file.type)) {
-        toast({
-          variant: 'destructive',
+        toast.error({
           title: 'Invalid file type',
-          description: 'Please upload an image (JPG, PNG) or PDF file.',
-          duration: 5000,
+          description: 'Please upload a JPG, PNG, or PDF file.'
         });
         return;
       }
       
       setReceiptFile(file);
+      toast.success({
+        title: 'File uploaded',
+        description: 'Receipt file has been uploaded successfully.'
+      });
     }
   };
 
   return (
-    <div className="flex min-h-screen dark-mode bg-[var(--portal-bg)]">
-      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
-        <div className="mx-auto w-full max-w-sm lg:w-96">
-          <div className="flex flex-col items-center mb-6">
-            <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-gold-500 to-gold-400 flex items-center justify-center text-black shadow-lg mb-4">
-              <BuildingIcon className="h-8 w-8" />
+    <div className="flex min-h-screen bg-[var(--portal-bg)]">
+      {/* Full-width form section with enhanced design */}
+      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 relative overflow-hidden">
+        {/* Background gradient effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gold-500/5 via-transparent to-gold-500/5 pointer-events-none"></div>
+        
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0" style={{ 
+          backgroundImage: 'linear-gradient(var(--portal-border) 1px, transparent 1px), linear-gradient(90deg, var(--portal-border) 1px, transparent 1px)', 
+          backgroundSize: '40px 40px',
+          opacity: 0.05
+        }}></div>
+        
+        {/* Animated background elements - fewer and more spread out */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Main gradient circles */}
+          <motion.div 
+            className="absolute w-[1000px] h-[1000px] rounded-full bg-gradient-to-br from-gold-500/10 to-transparent -top-[400px] left-[20%] blur-3xl"
+            animate={{ 
+              scale: [1, 1.1, 1],
+              opacity: [0.3, 0.2, 0.3],
+            }}
+            transition={{
+              duration: 12,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          
+          <motion.div 
+            className="absolute w-[800px] h-[800px] rounded-full bg-gradient-to-tr from-gold-500/8 to-transparent -bottom-[300px] right-[20%] blur-3xl"
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.2, 0.3, 0.2],
+            }}
+            transition={{
+              duration: 15,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1
+            }}
+          />
+
+          {/* Just 3 floating elements spread across the whole width */}
+          <motion.div
+            className="absolute w-32 h-32 rounded-2xl bg-gradient-to-br from-gold-500/15 to-gold-500/5 top-[20%] left-[15%] backdrop-blur-sm border border-gold-500/10"
+            style={{ transform: 'perspective(1000px) rotateX(10deg) rotateY(-10deg)' }}
+            animate={{ 
+              y: [0, -30, 0],
+              rotateZ: [0, 5, 0],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          
+          <motion.div
+            className="absolute w-20 h-20 rounded-xl bg-gradient-to-tr from-gold-500/10 to-transparent bottom-[30%] right-[15%] backdrop-blur-sm border border-gold-500/10"
+            style={{ transform: 'perspective(1000px) rotateX(-5deg) rotateY(10deg)' }}
+            animate={{
+              y: [0, 40, 0],
+              rotateZ: [0, -3, 0],
+            }}
+            transition={{
+              duration: 25,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2
+            }}
+          />
             </div>
+
+        <motion.div 
+          className="mx-auto w-full max-w-md relative z-10"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex flex-col items-center mb-8">
+            <motion.div 
+              className="h-16 w-16 rounded-2xl bg-gradient-to-br from-gold-500 to-gold-400 flex items-center justify-center text-black shadow-lg mb-4"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <BuildingIcon className="h-10 w-10" />
+            </motion.div>
             <Link 
               to="/" 
-              className="text-sm text-gold-400 hover:text-gold-500 flex items-center gap-1 transition-colors"
+              className="text-sm text-gold-400 hover:text-gold-500 flex items-center gap-1 transition-colors group"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Back to Home
             </Link>
           </div>
-          <h2 className="text-3xl font-extrabold text-center gradient-text">
-            {isSignUp ? 'Create Account' : 'Sign In'}
-          </h2>
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <motion.h2 
+            className="text-4xl font-extrabold text-center mb-2 bg-gradient-to-r from-gold-500 to-gold-300 bg-clip-text text-transparent"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            {isSignUp ? 'Create Account' : 'Welcome Back'}
+          </motion.h2>
+          
+          <motion.p 
+            className="text-center text-[var(--portal-text-secondary)] mb-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            {isSignUp ? 'Join our real estate platform today' : 'Sign in to access your dashboard'}
+          </motion.p>
+
+          <motion.form 
+            className="space-y-6" 
+            onSubmit={handleSubmit(onSubmit)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium">
+                <label htmlFor="email" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
                 Email
               </label>
-              <div className="mt-1">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gold-500/50" />
+                  </div>
                 <input
                   id="email"
                   type="email"
                   {...register('email')}
-                  className="dark-input w-full"
+                    className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
                   placeholder="your@email.com"
                 />
+                </div>
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
                 )}
-              </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium">
+                <label htmlFor="password" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
                 Password
               </label>
-              <div className="mt-1">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gold-500/50" />
+                  </div>
                 <input
                   id="password"
                   type="password"
                   {...register('password')}
-                  className="dark-input w-full"
+                    className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
                   placeholder="••••••••"
                 />
+                </div>
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
                 )}
-              </div>
             </div>
 
             {isSignUp && (
-              <>
+                <motion.div 
+                  className="space-y-4"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  transition={{ duration: 0.3 }}
+                >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium">
+                      <label htmlFor="firstName" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
                       First Name
                     </label>
-                    <div className="mt-1">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <User className="h-5 w-5 text-gold-500/50" />
+                        </div>
                       <input
                         id="firstName"
                         type="text"
                         {...register('firstName')}
-                        className="dark-input w-full"
+                          className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
                         placeholder="John"
                       />
+                      </div>
                       {errors.firstName && (
                         <p className="mt-1 text-sm text-red-500">{errors.firstName.message}</p>
                       )}
-                    </div>
                   </div>
 
                   <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium">
+                      <label htmlFor="lastName" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
                       Last Name
                     </label>
-                    <div className="mt-1">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <User className="h-5 w-5 text-gold-500/50" />
+                        </div>
                       <input
                         id="lastName"
                         type="text"
                         {...register('lastName')}
-                        className="dark-input w-full"
+                          className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
                         placeholder="Doe"
                       />
+                      </div>
                       {errors.lastName && (
                         <p className="mt-1 text-sm text-red-500">{errors.lastName.message}</p>
                       )}
-                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="phoneNumber" className="block text-sm font-medium">
+                    <label htmlFor="phoneNumber" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
                     Phone Number
                   </label>
-                  <div className="mt-1">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Phone className="h-5 w-5 text-gold-500/50" />
+                      </div>
                     <input
                       id="phoneNumber"
                       type="tel"
                       {...register('phoneNumber')}
-                      className="dark-input w-full"
+                        className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
                       placeholder="+1234567890"
                     />
+                    </div>
                     {errors.phoneNumber && (
                       <p className="mt-1 text-sm text-red-500">{errors.phoneNumber.message}</p>
                     )}
-                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="career" className="block text-sm font-medium">
+                    <label htmlFor="career" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
                     Career
                   </label>
-                  <div className="mt-1">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Briefcase className="h-5 w-5 text-gold-500/50" />
+                      </div>
                     <input
                       id="career"
                       type="text"
                       {...register('career')}
-                      className="dark-input w-full"
+                        className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
                       placeholder="Real Estate Agent"
                     />
+                    </div>
                     {errors.career && (
                       <p className="mt-1 text-sm text-red-500">{errors.career.message}</p>
                     )}
-                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="receipt" className="block text-sm font-medium">
-                    Upload Payment Receipt (Max 5MB - Image or PDF)
+                    <label htmlFor="receipt" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
+                      Upload Payment Receipt
                   </label>
-                  <div className="mt-1">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FileText className="h-5 w-5 text-gold-500/50" />
+                      </div>
                     <input
                       id="receipt"
                       type="file"
                       accept="image/jpeg,image/png,image/jpg,application/pdf"
                       onChange={handleFileChange}
-                      className="dark-input w-full"
+                        className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gold-500/10 file:text-gold-500 hover:file:bg-gold-500/20"
                     />
+                    </div>
                     {receiptFile && (
-                      <p className="mt-1 text-sm text-green-500">
+                      <p className="mt-2 text-sm text-green-500 flex items-center gap-1">
+                        <CheckIcon className="h-4 w-4" />
                         File selected: {receiptFile.name}
                       </p>
                     )}
@@ -362,32 +487,40 @@ const Auth = () => {
                       Upload proof of payment to proceed with registration.
                     </p>
                   </div>
+                </motion.div>
+              )}
                 </div>
-              </>
-            )}
 
-            <div>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
               <Button
                 type="submit"
-                className="w-full gradient-btn"
+                className="w-full gradient-btn py-3 rounded-xl text-base font-medium shadow-lg shadow-gold-500/20 hover:shadow-gold-500/30 transition-all duration-200"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Processing...
                   </span>
                 ) : (
-                  <>{isSignUp ? 'Sign Up' : 'Sign In'}</>
+                  <>{isSignUp ? 'Create Account' : 'Sign In'}</>
                 )}
               </Button>
-            </div>
-          </form>
+            </motion.div>
+          </motion.form>
 
-          <div className="mt-6 text-center">
+          <motion.div 
+            className="mt-8 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
             <button
               type="button"
               onClick={() => {
@@ -395,14 +528,14 @@ const Auth = () => {
                 reset();
                 setReceiptFile(null);
               }}
-              className="text-sm text-gold-400 hover:text-gold-500"
+              className="text-sm text-gold-400 hover:text-gold-500 transition-colors"
             >
               {isSignUp
                 ? 'Already have an account? Sign In'
                 : "Don't have an account? Sign Up"}
             </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
     </div>
   );

@@ -1,13 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Helmet } from 'react-helmet-async';
 import { createSlug, formatCurrency, formatDate } from '@/lib/formatters';
 import ImageGallery from '@/components/public/ImageGallery';
-import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send, Share2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Listing, Agent } from '@/types';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Define interfaces directly
+interface Listing {
+  id: string;
+  title: string;
+  description?: string;
+  price: number;
+  location?: string;
+  created_at: string;
+  main_image_url?: string;
+  additional_image_urls?: string[];
+  whatsapp_link?: string;
+  telegram_link?: string;
+  user_id?: string;
+}
+
+interface Agent {
+  id: string;
+  first_name: string;
+  last_name: string;
+  career?: string;
+  phone_number?: string;
+  avatar_url?: string;
+  slug?: string;
+}
 
 const ListingDetail = () => {
   const { agentSlug, listingId } = useParams<{ agentSlug: string; listingId: string }>();
@@ -16,6 +41,8 @@ const ListingDetail = () => {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const shareUrlRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchListingAndAgent = async () => {
@@ -92,13 +119,70 @@ const ListingDetail = () => {
     }
   }, [listingId, agentSlug, navigate]);
 
+  const handleCopyLink = () => {
+    const url = window.location.href;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          setCopied(true);
+          toast.success('Link copied to clipboard!');
+          
+          setTimeout(() => {
+            setCopied(false);
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy: ', err);
+          toast.error('Failed to copy link');
+        });
+    } else {
+      // Fallback for browsers that don't support clipboard API
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        toast.success('Link copied to clipboard!');
+        
+        setTimeout(() => {
+          setCopied(false);
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy: ', err);
+        toast.error('Failed to copy link');
+      }
+      
+      document.body.removeChild(textarea);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--portal-bg)] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gold-500" />
-          <p className="text-[var(--portal-text-secondary)]">Loading property details...</p>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+          >
+            <Loader2 className="h-12 w-12 text-gold-500 mx-auto mb-4" />
+          </motion.div>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-[var(--portal-text-secondary)] text-lg"
+          >
+            Loading property details...
+          </motion.p>
+        </motion.div>
       </div>
     );
   }
@@ -107,7 +191,11 @@ const ListingDetail = () => {
     return (
       <div className="min-h-screen bg-[var(--portal-bg)]">
         <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
             <h2 className="text-2xl font-bold mb-4">Oops!</h2>
             <p className="text-[var(--portal-text-secondary)] mb-6">
               {error || 'This property listing could not be found.'}
@@ -120,7 +208,7 @@ const ListingDetail = () => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
             </Button>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -155,6 +243,8 @@ const ListingDetail = () => {
     },
   ].filter(option => option.link);
 
+  const shareUrl = window.location.href;
+
   return (
     <>
       <Helmet>
@@ -170,32 +260,105 @@ const ListingDetail = () => {
       </Helmet>
       
       <div className="min-h-screen bg-[var(--portal-bg)]">
-      <div className="container mx-auto px-4 py-8">
+        {/* Decorative elements */}
+        <div className="fixed top-0 left-0 w-96 h-96 bg-gold-500/5 rounded-full -ml-48 -mt-48 blur-3xl pointer-events-none"></div>
+        <div className="fixed bottom-0 right-0 w-96 h-96 bg-gold-500/5 rounded-full -mr-48 -mb-48 blur-3xl pointer-events-none"></div>
+        
+        <div className="container mx-auto px-4 py-8 relative z-10">
           {/* Back Button */}
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center text-[var(--portal-text-secondary)] hover:text-gold-500 mb-6 transition-colors"
+            className="inline-flex items-center text-[var(--portal-text-secondary)] hover:text-gold-500 mb-6 transition-colors group"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
             Back to Listings
           </button>
 
           {/* Title Section */}
           <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">{listing.title}</h1>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 md:mb-0">{listing.title}</h1>
+              
+              <div className="flex items-center space-x-2">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button
+                    onClick={handleCopyLink}
+                    variant="outline"
+                    size="sm"
+                    className="bg-[var(--portal-card-bg)] border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] transition-all flex items-center justify-center gap-2"
+                  >
+                    <AnimatePresence mode="wait">
+                      {copied ? (
+                        <motion.div
+                          key="check"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                          className="text-green-500"
+                        >
+                          <Check className="h-4 w-4" />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="copy"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    {copied ? 'Copied!' : 'Copy Link'}
+                  </Button>
+                </motion.div>
+                
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button
+                    onClick={() => {
+                      if (navigator.share) {
+                        navigator.share({
+                          title: listing.title,
+                          text: listing.description,
+                          url: window.location.href,
+                        }).catch(err => {
+                          console.error('Error sharing:', err);
+                          handleCopyLink();
+                        });
+                      } else {
+                        handleCopyLink();
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="bg-[var(--portal-card-bg)] border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] transition-all"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
+                  </Button>
+                </motion.div>
+              </div>
+            </div>
+            
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base text-[var(--portal-text-secondary)]">
-                <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-1" />
+              <div className="flex items-center bg-[var(--portal-card-bg)] p-2 rounded-lg">
+                <MapPin className="h-4 w-4 mr-1 text-gold-500" />
                 <span>{listing.location || 'Location not specified'}</span>
-                </div>
+              </div>
               <span className="hidden sm:inline">•</span>
-              <div className="flex items-center">
-                <Banknote className="h-4 w-4 mr-1" />
+              <div className="flex items-center bg-[var(--portal-card-bg)] p-2 rounded-lg">
+                <Banknote className="h-4 w-4 mr-1 text-gold-500" />
                 <span>{formatCurrency(listing.price)}</span>
               </div>
               <span className="hidden sm:inline">•</span>
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 mr-1" />
+              <div className="flex items-center bg-[var(--portal-card-bg)] p-2 rounded-lg">
+                <Calendar className="h-4 w-4 mr-1 text-gold-500" />
                 <span>Listed {formatDate(listing.created_at)}</span>
               </div>
             </div>
@@ -203,10 +366,10 @@ const ListingDetail = () => {
           
           {/* Image Gallery */}
           <div className="mb-8">
-          <ImageGallery 
-            mainImage={listing.main_image_url || ''} 
+            <ImageGallery 
+              mainImage={listing.main_image_url || ''} 
               additionalImages={listing.additional_image_urls || []}
-          />
+            />
           </div>
           
           {/* Listing Details */}
@@ -214,101 +377,129 @@ const ListingDetail = () => {
             <div className="lg:col-span-2">
               {/* Description */}
               <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6 mb-6">
-                <h2 className="text-xl font-bold mb-4 text-gold-500">Description</h2>
+                <h2 className="text-xl font-bold mb-4 text-gold-500 flex items-center">
+                  <div className="w-1 h-5 bg-gold-500 rounded-full mr-2"></div>
+                  Description
+                </h2>
                 <div className="prose prose-gold dark:prose-invert max-w-none">
-                {listing.description ? (
-                    <p className="whitespace-pre-wrap">{listing.description}</p>
-                ) : (
-                  <p className="text-[var(--portal-text-secondary)]">No description provided.</p>
-                )}
+                  {listing.description ? (
+                    <p className="whitespace-pre-wrap leading-relaxed">{listing.description}</p>
+                  ) : (
+                    <p className="text-[var(--portal-text-secondary)]">No description provided.</p>
+                  )}
+                </div>
               </div>
-            </div>
             
               {/* Property Details */}
               <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6">
-                <h2 className="text-xl font-bold mb-4 text-gold-500">Property Details</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-semibold mb-2">Location</h3>
-                    <p className="text-[var(--portal-text-secondary)]">
-                      {listing.location || 'Location not specified'}
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Price</h3>
-                    <p className="text-[var(--portal-text-secondary)]">
-                      {formatCurrency(listing.price || 0)}
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Listed</h3>
-                    <p className="text-[var(--portal-text-secondary)]">
-                      {formatDate(listing.created_at)}
-                    </p>
-                  </div>
+                <h2 className="text-xl font-bold mb-4 text-gold-500 flex items-center">
+                  <div className="w-1 h-5 bg-gold-500 rounded-full mr-2"></div>
+                  Property Details
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="font-semibold mb-2 text-gold-500">Location</div>
+                  <p className="text-[var(--portal-text-secondary)] bg-[var(--portal-bg-hover)]/50 p-3 rounded-lg">
+                    {listing.location || 'Location not specified'}
+                  </p>
+                  <div className="font-semibold mb-2 text-gold-500">Price</div>
+                  <p className="text-[var(--portal-text-secondary)] bg-[var(--portal-bg-hover)]/50 p-3 rounded-lg">
+                    {formatCurrency(listing.price || 0)}
+                  </p>
+                  <div className="font-semibold mb-2 text-gold-500">Listed</div>
+                  <p className="text-[var(--portal-text-secondary)] bg-[var(--portal-bg-hover)]/50 p-3 rounded-lg">
+                    {formatDate(listing.created_at)}
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Contact Section */}
+            {/* Contact Card */}
             <div className="lg:col-span-1">
-              <div className="sticky top-4">
-                <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6 mb-6">
-                  <h2 className="text-xl font-bold mb-4 text-gold-500">Contact Agent</h2>
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="w-16 h-16 rounded-full bg-gold-500/10 flex items-center justify-center text-gold-500 text-xl font-bold">
-                    {agent.first_name?.charAt(0) || ''}{agent.last_name?.charAt(0) || ''}
+              <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6 sticky top-4">
+                <h2 className="text-xl font-bold mb-4 text-gold-500 flex items-center">
+                  <div className="w-1 h-5 bg-gold-500 rounded-full mr-2"></div>
+                  Contact Agent
+                </h2>
+
+                <div className="mb-4 flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded-full bg-[var(--portal-bg-hover)] overflow-hidden border-2 border-gold-500/20">
+                    {agent.avatar_url ? (
+                      <img
+                        src={agent.avatar_url}
+                        alt={`${agent.first_name} ${agent.last_name}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gold-500/20 text-gold-500 font-bold text-xl">
+                        {agent.first_name?.[0]}{agent.last_name?.[0]}
+                      </div>
+                    )}
                   </div>
                   <div>
-                      <h3 className="font-semibold">{agent.first_name} {agent.last_name}</h3>
-                    {agent.career && <p className="text-sm text-[var(--portal-text-secondary)]">{agent.career}</p>}
+                    <h3 className="font-semibold text-lg">{agent.first_name} {agent.last_name}</h3>
+                    {agent.career && (
+                      <p className="text-sm text-[var(--portal-text-secondary)]">{agent.career}</p>
+                    )}
                   </div>
                 </div>
 
-                  <div className="space-y-3">
-                    {contactOptions.map((option, index) => (
-                      option.link && (
-                        <a
-                          key={option.type}
-                          href={option.href}
-                          target={option.type !== 'phone' ? '_blank' : undefined}
-                          rel={option.type !== 'phone' ? 'noopener noreferrer' : undefined}
-                          className="flex items-center justify-center w-full px-4 py-2 bg-gold-500 hover:bg-gold-600 text-black rounded-lg transition-colors"
-                        >
-                          {option.icon}
-                          {option.label}
-                        </a>
-                      )
-                    ))}
-                </div>
-                
-                <Link 
-                  to={`/${agent.slug || agentSlug}`}
-                    className="flex items-center justify-center w-full mt-4 text-gold-500 hover:text-gold-600"
-                >
-                  <span>View all listings</span>
-                  <ExternalLink className="h-4 w-4 ml-1" />
-                </Link>
-              </div>
-              
-                {/* Share Section */}
-                <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6">
-                  <h2 className="text-xl font-bold mb-4 text-gold-500">Share Listing</h2>
-                  <div className="space-y-3">
-                    <Button
-                      onClick={() => {
-                        navigator.clipboard.writeText(window.location.href);
-                        toast.success('Link copied to clipboard');
-                      }}
-                      variant="outline"
-                      className="w-full"
+                <div className="space-y-3">
+                  {contactOptions.map((option, index) => (
+                    <a
+                      key={option.type}
+                      href={option.href}
+                      target={option.type !== 'phone' ? '_blank' : undefined}
+                      rel="noopener noreferrer"
+                      className={`flex items-center justify-center py-3 px-4 rounded-lg w-full font-medium transition-all ${
+                        option.type === 'phone'
+                          ? 'bg-gold-500 text-black hover:bg-gold-600'
+                          : 'bg-[var(--portal-bg-hover)] text-[var(--portal-text)] hover:bg-[var(--portal-border)]'
+                      }`}
                     >
-                      Copy Link
-                    </Button>
-                  </div>
+                      {option.icon}
+                      {option.label}
+                    </a>
+                  ))}
+                  
+                  <Link to={`/${agent.slug}`}>
+                    <div className="flex items-center justify-center py-3 px-4 rounded-lg w-full bg-[var(--portal-bg-hover)]/50 text-[var(--portal-text-secondary)] hover:bg-[var(--portal-bg-hover)] transition-all mt-4 text-sm">
+                      <ExternalLink className="h-3.5 w-3.5 mr-2" />
+                      View All Listings from this Agent
+                    </div>
+                  </Link>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Bottom Navigation */}
+          <div className="flex justify-between mb-12">
+            <Button
+              variant="outline"
+              onClick={() => navigate(-1)}
+              className="border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] transition-all"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Listings
+            </Button>
+            
+            <Button
+              onClick={handleCopyLink}
+              variant="outline"
+              className="border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] transition-all"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4 mr-2 text-green-500" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share Listing
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>

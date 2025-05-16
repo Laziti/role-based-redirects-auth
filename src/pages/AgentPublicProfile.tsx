@@ -5,8 +5,10 @@ import { toast } from 'sonner';
 import { Helmet } from 'react-helmet';
 import AgentProfileHeader from '@/components/public/AgentProfileHeader';
 import ListingCard from '@/components/public/ListingCard';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Building, ChevronRight, Home, ArrowLeft, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
+import { createSlug } from '@/lib/formatters';
 
 interface AgentProfile {
   id: string;
@@ -94,7 +96,7 @@ const AgentPublicProfile = () => {
           .from('listings')
           .select('id, title, price, location, main_image_url, description, created_at')
           .eq('user_id', agent ? agent.id : profileData.id)
-          .eq('status', 'active')
+          .neq('status', 'hidden')
           .order('created_at', { ascending: false });
           
         console.log('Fetched listings data:', listingsData);
@@ -117,7 +119,10 @@ const AgentPublicProfile = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--portal-bg)] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-gold-500" />
+          <p className="text-[var(--portal-text-secondary)] animate-pulse">Loading agent profile...</p>
+        </div>
       </div>
     );
   }
@@ -138,20 +143,44 @@ const AgentPublicProfile = () => {
         <meta name="twitter:description" content={pageDescription} />
       </Helmet>
       
-      <div className="container mx-auto px-4 py-8">
+      {/* Decorative elements */}
+      <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-b from-gold-500/5 to-transparent pointer-events-none"></div>
+      <div className="fixed bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-gold-500/10 to-transparent rounded-full blur-3xl -mb-48 -mr-48 pointer-events-none"></div>
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-2">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6"
+          >
             <Button 
               variant="ghost"
               onClick={() => navigate('/')}
-              className="text-gold-500 hover:text-gold-600 hover:bg-[var(--portal-card-bg)/50]"
+              className="text-gold-500 hover:text-gold-600 hover:bg-[var(--portal-card-bg)/50] group"
             >
-              &larr; Back to Home
+              <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+              Back to Home
             </Button>
-          </div>
+          </motion.div>
+          
+          {/* Breadcrumb */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
+            className="flex items-center text-sm text-[var(--portal-text-secondary)] mb-6"
+          >
+            <Home className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3.5 w-3.5 mx-2" />
+            <span>Agents</span>
+            <ChevronRight className="h-3.5 w-3.5 mx-2" />
+            <span className="text-[var(--portal-text)] font-medium">{agent.first_name} {agent.last_name}</span>
+          </motion.div>
           
           {/* Agent Profile Header */}
-          <div className="mb-8">
+          <div className="mb-12">
             <AgentProfileHeader 
               firstName={agent.first_name}
               lastName={agent.last_name}
@@ -162,58 +191,95 @@ const AgentPublicProfile = () => {
           </div>
           
           {/* Listings Section */}
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-6 text-gold-500">
-              {listings.length > 0 
-                ? `Properties Listed by ${agent.first_name}`
-                : 'No Properties Listed'}
-            </h2>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.4 }}
+            className="mb-12"
+          >
+            <div className="flex items-center mb-8">
+              <div className="h-10 w-1 bg-gold-500 rounded-full mr-3"></div>
+              <h2 className="text-2xl font-bold text-gold-500">
+                {listings.length > 0 
+                  ? `Properties Listed by ${agent.first_name}`
+                  : 'No Properties Listed'}
+              </h2>
+            </div>
             
-            {listings.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {listings.map(listing => (
-                  <ListingCard 
-                    key={listing.id}
-                    id={listing.id}
-                    title={listing.title}
-                    price={listing.price}
-                    location={listing.location}
-                    mainImageUrl={listing.main_image_url}
-                    agentSlug={agentSlug}
-                    description={listing.description}
-                    createdAt={listing.created_at}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-[var(--portal-card-bg)] rounded-lg border border-[var(--portal-border)]">
-                <p className="text-[var(--portal-text-secondary)]">This agent has no active listings at the moment.</p>
-              </div>
-            )}
-          </div>
+            <AnimatePresence>
+              {listings.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {listings.map((listing, index) => (
+                    <motion.div
+                      key={listing.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 * (index % 3), duration: 0.4 }}
+                    >
+                      <ListingCard 
+                        id={listing.id}
+                        title={listing.title}
+                        price={listing.price}
+                        location={listing.location}
+                        mainImageUrl={listing.main_image_url}
+                        agentSlug={agentSlug}
+                        description={listing.description}
+                        createdAt={listing.created_at}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-12 bg-[var(--portal-card-bg)] rounded-xl border border-[var(--portal-border)] text-center"
+                >
+                  <Building className="h-16 w-16 text-[var(--portal-text-secondary)]/20 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2 text-gold-500">No Active Listings</h3>
+                  <p className="text-[var(--portal-text-secondary)] max-w-md mx-auto">
+                    This agent has no active listings at the moment. Please check back later or contact them directly for more information.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
           
           {/* Contact Section */}
-          <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6 text-center">
-            <h3 className="font-semibold text-lg mb-2 text-gold-500">Interested in these properties?</h3>
-            <p className="mb-4 text-[var(--portal-text-secondary)]">Contact {agent.first_name} directly for more information.</p>
-            {agent.phone_number && (
-              <Button className="bg-gold-500 hover:bg-gold-600 text-black">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-4 w-4 mr-2" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.4 }}
+            className="bg-gradient-to-br from-[var(--portal-card-bg)] to-[var(--portal-card-bg)]/80 border border-[var(--portal-border)] rounded-xl p-8 text-center shadow-lg mb-12"
+          >
+            <div className="max-w-2xl mx-auto">
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.7, duration: 0.4 }}
+                className="w-16 h-16 bg-gold-500/10 rounded-full flex items-center justify-center mx-auto mb-4"
+              >
+                <Phone className="h-8 w-8 text-gold-500" />
+              </motion.div>
+              
+              <h3 className="text-2xl font-bold mb-3 text-gold-500">Interested in these properties?</h3>
+              <p className="mb-6 text-[var(--portal-text-secondary)]">
+                Contact {agent.first_name} directly for more information about any of the properties or to schedule a viewing.
+              </p>
+              
+              {agent.phone_number && (
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                </svg>
-                Call Agent
-              </Button>
-            )}
-          </div>
+                  <Button className="bg-gold-500 hover:bg-gold-600 text-black py-6 px-8 rounded-xl font-semibold text-lg shadow-lg">
+                    <Phone className="h-5 w-5 mr-3" />
+                    Call {agent.first_name} at {agent.phone_number}
+                  </Button>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
@@ -221,5 +287,3 @@ const AgentPublicProfile = () => {
 };
 
 export default AgentPublicProfile;
-
-import { createSlug } from '@/lib/formatters';

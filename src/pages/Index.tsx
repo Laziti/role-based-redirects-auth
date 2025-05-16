@@ -31,7 +31,7 @@ const Index = () => {
           {/* Main gradient circles */}
           <motion.div 
             className="absolute w-[800px] h-[800px] rounded-full bg-gold-500/5 -top-[400px] left-1/2 transform -translate-x-1/2"
-            animate={{
+            animate={{ 
               scale: [1, 1.1, 1],
               opacity: [0.5, 0.3, 0.5],
             }}
@@ -59,7 +59,7 @@ const Index = () => {
           {/* Left side floating elements */}
           <motion.div
             className="absolute w-16 h-16 rounded-full bg-gold-500/10 top-20 left-[15%]"
-            animate={{
+            animate={{ 
               y: [0, -30, 0],
               x: [0, 20, 0],
               rotate: [0, 45, 0]
@@ -184,18 +184,18 @@ const Index = () => {
               >
                 {!user ? (
                   <>
-                    <Link to="/auth">
-                      <Button 
-                        size="lg" 
+                  <Link to="/auth">
+                    <Button 
+                      size="lg" 
                         className="bg-gold-500 hover:bg-gold-600 text-black px-8 rounded-lg shadow-lg hover:shadow-gold-500/20 transition-all duration-300 w-full sm:w-auto"
                         onClick={() => {
                           localStorage.setItem('authMode', 'signup');
                         }}
-                      >
-                        Get Started Now
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                      </Button>
-                    </Link>
+                    >
+                      Get Started Now
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
                     <Link to="/auth">
                       <Button 
                         size="lg" 

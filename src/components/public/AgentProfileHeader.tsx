@@ -75,7 +75,7 @@ const AgentProfileHeader = ({
             <h1 className="text-2xl md:text-3xl font-bold text-gold-500 mb-1">{firstName} {lastName}</h1>
             
             <div className="flex flex-wrap items-center gap-2 mb-3 text-[var(--portal-text-secondary)]">
-              {career && (
+          {career && (
                 <div className="inline-flex items-center gap-1 px-3 py-1 bg-[var(--portal-bg-hover)] rounded-full text-sm">
                   <Briefcase className="h-3.5 w-3.5" />
                   <span>{career}</span>
@@ -112,15 +112,15 @@ const AgentProfileHeader = ({
               transition={{ delay: 0.7, duration: 0.4 }}
               className="flex flex-wrap gap-4 mt-4"
             >
-              {phoneNumber && (
-                <a 
-                  href={`tel:${phoneNumber}`} 
+          {phoneNumber && (
+            <a 
+              href={`tel:${phoneNumber}`} 
                   className="inline-flex items-center gap-2 px-4 py-2 bg-gold-500 text-black rounded-lg hover:bg-gold-600 transition-colors font-medium shadow-sm"
                 >
                   <Phone className="h-4 w-4" />
-                  {phoneNumber}
-                </a>
-              )}
+              {phoneNumber}
+            </a>
+          )}
               
               {email && (
                 <a 

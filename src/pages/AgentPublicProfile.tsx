@@ -200,14 +200,14 @@ const AgentPublicProfile = () => {
             <div className="flex items-center mb-8">
               <div className="h-10 w-1 bg-gold-500 rounded-full mr-3"></div>
               <h2 className="text-2xl font-bold text-gold-500">
-                {listings.length > 0 
-                  ? `Properties Listed by ${agent.first_name}`
-                  : 'No Properties Listed'}
-              </h2>
+              {listings.length > 0 
+                ? `Properties Listed by ${agent.first_name}`
+                : 'No Properties Listed'}
+            </h2>
             </div>
             
             <AnimatePresence>
-              {listings.length > 0 ? (
+            {listings.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {listings.map((listing, index) => (
                     <motion.div
@@ -216,20 +216,20 @@ const AgentPublicProfile = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 * (index % 3), duration: 0.4 }}
                     >
-                      <ListingCard 
-                        id={listing.id}
-                        title={listing.title}
-                        price={listing.price}
-                        location={listing.location}
-                        mainImageUrl={listing.main_image_url}
-                        agentSlug={agentSlug}
-                        description={listing.description}
-                        createdAt={listing.created_at}
-                      />
+                  <ListingCard 
+                    id={listing.id}
+                    title={listing.title}
+                    price={listing.price}
+                    location={listing.location}
+                    mainImageUrl={listing.main_image_url}
+                    agentSlug={agentSlug}
+                    description={listing.description}
+                    createdAt={listing.created_at}
+                  />
                     </motion.div>
-                  ))}
-                </div>
-              ) : (
+                ))}
+              </div>
+            ) : (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -267,7 +267,7 @@ const AgentPublicProfile = () => {
                 Contact {agent.first_name} directly for more information about any of the properties or to schedule a viewing.
               </p>
               
-              {agent.phone_number && (
+            {agent.phone_number && (
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -275,10 +275,10 @@ const AgentPublicProfile = () => {
                   <Button className="bg-gold-500 hover:bg-gold-600 text-black py-6 px-8 rounded-xl font-semibold text-lg shadow-lg">
                     <Phone className="h-5 w-5 mr-3" />
                     Call {agent.first_name} at {agent.phone_number}
-                  </Button>
+              </Button>
                 </motion.div>
-              )}
-            </div>
+            )}
+          </div>
           </motion.div>
         </div>
       </div>

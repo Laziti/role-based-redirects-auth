@@ -350,7 +350,7 @@ const ListingDetail = () => {
               <div className="flex items-center bg-[var(--portal-card-bg)] p-2 rounded-lg">
                 <MapPin className="h-4 w-4 mr-1 text-gold-500" />
                 <span>{listing.location || 'Location not specified'}</span>
-              </div>
+                </div>
               <span className="hidden sm:inline">•</span>
               <div className="flex items-center bg-[var(--portal-card-bg)] p-2 rounded-lg">
                 <Banknote className="h-4 w-4 mr-1 text-gold-500" />
@@ -366,10 +366,10 @@ const ListingDetail = () => {
           
           {/* Image Gallery */}
           <div className="mb-8">
-            <ImageGallery 
-              mainImage={listing.main_image_url || ''} 
+          <ImageGallery 
+            mainImage={listing.main_image_url || ''} 
               additionalImages={listing.additional_image_urls || []}
-            />
+          />
           </div>
           
           {/* Listing Details */}
@@ -382,13 +382,13 @@ const ListingDetail = () => {
                   Description
                 </h2>
                 <div className="prose prose-gold dark:prose-invert max-w-none">
-                  {listing.description ? (
+                {listing.description ? (
                     <p className="whitespace-pre-wrap leading-relaxed">{listing.description}</p>
-                  ) : (
-                    <p className="text-[var(--portal-text-secondary)]">No description provided.</p>
-                  )}
-                </div>
+                ) : (
+                  <p className="text-[var(--portal-text-secondary)]">No description provided.</p>
+                )}
               </div>
+            </div>
             
               {/* Property Details */}
               <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6">
@@ -399,16 +399,16 @@ const ListingDetail = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="font-semibold mb-2 text-gold-500">Location</div>
                   <p className="text-[var(--portal-text-secondary)] bg-[var(--portal-bg-hover)]/50 p-3 rounded-lg">
-                    {listing.location || 'Location not specified'}
-                  </p>
+                      {listing.location || 'Location not specified'}
+                    </p>
                   <div className="font-semibold mb-2 text-gold-500">Price</div>
                   <p className="text-[var(--portal-text-secondary)] bg-[var(--portal-bg-hover)]/50 p-3 rounded-lg">
-                    {formatCurrency(listing.price || 0)}
-                  </p>
+                      {formatCurrency(listing.price || 0)}
+                    </p>
                   <div className="font-semibold mb-2 text-gold-500">Listed</div>
                   <p className="text-[var(--portal-text-secondary)] bg-[var(--portal-bg-hover)]/50 p-3 rounded-lg">
-                    {formatDate(listing.created_at)}
-                  </p>
+                      {formatDate(listing.created_at)}
+                    </p>
                 </div>
               </div>
             </div>
@@ -443,30 +443,30 @@ const ListingDetail = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  {contactOptions.map((option, index) => (
-                    <a
-                      key={option.type}
-                      href={option.href}
-                      target={option.type !== 'phone' ? '_blank' : undefined}
+                  <div className="space-y-3">
+                    {contactOptions.map((option, index) => (
+                        <a
+                          key={option.type}
+                          href={option.href}
+                          target={option.type !== 'phone' ? '_blank' : undefined}
                       rel="noopener noreferrer"
                       className={`flex items-center justify-center py-3 px-4 rounded-lg w-full font-medium transition-all ${
                         option.type === 'phone'
                           ? 'bg-gold-500 text-black hover:bg-gold-600'
                           : 'bg-[var(--portal-bg-hover)] text-[var(--portal-text)] hover:bg-[var(--portal-border)]'
                       }`}
-                    >
-                      {option.icon}
-                      {option.label}
-                    </a>
-                  ))}
+                        >
+                          {option.icon}
+                          {option.label}
+                        </a>
+                    ))}
                   
                   <Link to={`/${agent.slug}`}>
                     <div className="flex items-center justify-center py-3 px-4 rounded-lg w-full bg-[var(--portal-bg-hover)]/50 text-[var(--portal-text-secondary)] hover:bg-[var(--portal-bg-hover)] transition-all mt-4 text-sm">
                       <ExternalLink className="h-3.5 w-3.5 mr-2" />
                       View All Listings from this Agent
-                    </div>
-                  </Link>
+                </div>
+                </Link>
                 </div>
               </div>
             </div>

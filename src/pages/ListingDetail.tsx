@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { Helmet } from 'react-helmet-async';
-import { createSlug, formatCurrency, formatDate } from '@/lib/formatters';
+import { createSlug, formatCurrency, formatDate, decodeListingId } from '@/lib/formatters';
 import ImageGallery from '@/components/public/ImageGallery';
 import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send, Share2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,10 @@ interface Listing {
   whatsapp_link?: string;
   telegram_link?: string;
   user_id?: string;
+  city?: string;
+  progress_status?: string;
+  bank_option?: boolean;
+  down_payment_percent?: number;
 }
 
 interface Agent {
@@ -35,7 +38,7 @@ interface Agent {
 }
 
 const ListingDetail = () => {
-  const { agentSlug, listingId } = useParams<{ agentSlug: string; listingId: string }>();
+  const { agentSlug, listingId, listingSlug } = useParams<{ agentSlug: string; listingId: string; listingSlug: string }>();
   const navigate = useNavigate();
   const [listing, setListing] = useState<Listing | null>(null);
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -48,17 +51,32 @@ const ListingDetail = () => {
     const fetchListingAndAgent = async () => {
       setLoading(true);
       try {
+        // Decode the listing ID
+        const decodedListingId = decodeListingId(listingId);
+
         // Fetch the listing
         const { data: listingData, error: listingError } = await supabase
           .from('listings')
           .select('*')
-          .eq('id', listingId)
+          .eq('id', decodedListingId)
           .single();
           
         if (listingError) throw listingError;
         
         if (!listingData) {
           navigate('/not-found');
+          return;
+        }
+
+        // Create slug from listing title
+        const expectedSlug = listingData.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+
+        // If the URL slug doesn't match the expected slug, redirect to the correct URL
+        if (listingSlug !== expectedSlug) {
+          navigate(`/${agentSlug}/listing/${listingId}/${expectedSlug}`, { replace: true });
           return;
         }
         
@@ -107,7 +125,6 @@ const ListingDetail = () => {
         setAgent({...agentData, slug: verifiedSlug});
       } catch (error) {
         console.error('Error fetching listing details:', error);
-        toast.error('Error loading listing data');
         navigate('/not-found');
       } finally {
         setLoading(false);
@@ -117,7 +134,7 @@ const ListingDetail = () => {
     if (listingId && agentSlug) {
       fetchListingAndAgent();
     }
-  }, [listingId, agentSlug, navigate]);
+  }, [listingId, agentSlug, listingSlug, navigate]);
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -126,15 +143,9 @@ const ListingDetail = () => {
       navigator.clipboard.writeText(url)
         .then(() => {
           setCopied(true);
-          toast.success('Link copied to clipboard!');
-          
-          setTimeout(() => {
-            setCopied(false);
-          }, 2000);
         })
         .catch(err => {
           console.error('Failed to copy: ', err);
-          toast.error('Failed to copy link');
         });
     } else {
       // Fallback for browsers that don't support clipboard API
@@ -146,14 +157,8 @@ const ListingDetail = () => {
       try {
         document.execCommand('copy');
         setCopied(true);
-        toast.success('Link copied to clipboard!');
-        
-        setTimeout(() => {
-          setCopied(false);
-        }, 2000);
       } catch (err) {
         console.error('Failed to copy: ', err);
-        toast.error('Failed to copy link');
       }
       
       document.body.removeChild(textarea);
@@ -343,6 +348,51 @@ const ListingDetail = () => {
                     Share
                   </Button>
                 </motion.div>
+              </div>
+            </div>
+            
+            {/* Categories Section */}
+            <div className="mb-6">
+              {/* Main Category - City */}
+              <div className="mb-4">
+                <h2 className="text-3xl font-bold text-gold-500 mb-2">
+                  {listing.city || 'Location Not Specified'}
+                </h2>
+                <div className="h-1 w-24 bg-gold-500/20 rounded-full"></div>
+              </div>
+              
+              {/* Sub Categories */}
+              <div className="flex flex-wrap gap-3">
+                {/* Progress Status Category */}
+                <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg px-4 py-2">
+                  <span className="text-sm font-medium text-[var(--portal-text-secondary)]">Progress:</span>
+                  <span className="ml-2 font-semibold text-[var(--portal-text)]">
+                    {listing.progress_status ? (
+                      listing.progress_status === 'excavation' ? 'Excavation (ቁፋሮ)' :
+                      listing.progress_status === 'on_progress' ? 'On Progress' :
+                      listing.progress_status === 'semi_finished' ? 'Semi-finished' :
+                      'Fully Finished'
+                    ) : 'Not specified'}
+                  </span>
+                </div>
+                
+                {/* Bank Option Category */}
+                <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg px-4 py-2">
+                  <span className="text-sm font-medium text-[var(--portal-text-secondary)]">Bank Option:</span>
+                  <span className="ml-2 font-semibold text-[var(--portal-text)]">
+                    {listing.bank_option ? 'Available' : 'Not Available'}
+                  </span>
+                </div>
+                
+                {/* Down Payment Category */}
+                {listing.down_payment_percent && (
+                  <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg px-4 py-2">
+                    <span className="text-sm font-medium text-[var(--portal-text-secondary)]">Down Payment:</span>
+                    <span className="ml-2 font-semibold text-[var(--portal-text)]">
+                      {listing.down_payment_percent}%
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             

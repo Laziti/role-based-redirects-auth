@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -78,7 +77,6 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
         if (error) throw error;
         
         if (!data) {
-          toast.error('Listing not found or you do not have permission to edit it');
           onCancel();
           return;
         }
@@ -115,7 +113,6 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
         }
       } catch (error: any) {
         console.error('Error fetching listing:', error);
-        toast.error(`Failed to load listing: ${error.message}`);
         onCancel();
       } finally {
         setIsLoading(false);
@@ -172,12 +169,10 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
 
   const onSubmit = async (values: ListingFormValues) => {
     if (!user) {
-      toast.error('You must be logged in to update a listing');
       return;
     }
 
     if (!mainImagePreview) {
-      toast.error('Main image is required');
       return;
     }
 
@@ -265,11 +260,9 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
       console.log('[EditForm] Updated price from response:', listing.price);
       console.log('[EditForm] Updated price type:', typeof listing.price);
 
-      toast.success('Listing updated successfully!');
       onSuccess();
     } catch (error: any) {
       console.error('Error updating listing:', error);
-      toast.error(`Failed to update listing: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }

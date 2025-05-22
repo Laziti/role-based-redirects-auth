@@ -1,10 +1,8 @@
-
 import React, { useEffect, useState } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import AdminSidebar from '@/components/AdminSidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 interface DashboardStats {
   totalAgents: number;
@@ -87,7 +85,7 @@ const AdminDashboard = () => {
         // Fetch recent activities (latest users and listings)
         await fetchRecentActivities();
       } catch (error: any) {
-        toast.error(`Error loading dashboard stats: ${error.message}`);
+        console.error(`Error loading dashboard stats: ${error.message}`);
       } finally {
         setLoading(false);
       }

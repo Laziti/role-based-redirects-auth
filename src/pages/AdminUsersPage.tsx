@@ -38,7 +38,6 @@ import {
 import { useForm } from 'react-hook-form';
 import { Input as FormInput } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@/lib/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Search, Filter, X, Loader2 } from 'lucide-react';
@@ -181,10 +180,7 @@ const AdminUsersPage = () => {
       setUsers(combinedUsers);
       applyFilters(combinedUsers, searchTerm, filters);
     } catch (error: any) {
-      toast.error({ 
-        title: 'Error loading users',
-        description: error.message
-      });
+      // No toast notification
     } finally {
       setLoading(false);
     }
@@ -240,16 +236,9 @@ const AdminUsersPage = () => {
         
       if (roleError) throw roleError;
       
-      toast.success({ 
-        title: 'User deleted',
-        description: `${selectedUser.first_name} ${selectedUser.last_name} has been deleted`
-      });
       fetchUsers();
     } catch (error: any) {
-      toast.error({ 
-        title: 'Error deleting user',
-        description: error.message
-      });
+      // No toast notification
     } finally {
       setDeleteDialogOpen(false);
       setSelectedUser(null);
@@ -271,16 +260,9 @@ const AdminUsersPage = () => {
       
       if (error) throw error;
       
-      toast.success({ 
-        title: 'Listing limit updated',
-        description: `Updated listing limit for ${selectedUser.first_name} ${selectedUser.last_name}`
-      });
       fetchUsers();
     } catch (error: any) {
-      toast.error({ 
-        title: 'Error updating limit',
-        description: error.message
-      });
+      // No toast notification
     } finally {
       setLimitDialogOpen(false);
       setSelectedUser(null);

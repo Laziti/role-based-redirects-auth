@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 import { createSlug } from '@/lib/formatters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
@@ -51,8 +49,7 @@ const AccountInfo = ({ listings }) => {
           }
         }
       } catch (error) {
-        console.error('Error fetching profile:', error);
-        toast.error('Failed to load account information');
+        console.error('Failed to load account information');
       }
     };
 

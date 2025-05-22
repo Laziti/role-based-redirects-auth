@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import AgentSidebar from '@/components/agent/AgentSidebar';
 import ListingTable from '@/components/agent/ListingTable';
@@ -65,7 +64,6 @@ const AgentDashboard = () => {
       }
     } catch (err) {
       console.error('Copy operation failed completely', err);
-      toast.error('Failed to copy link');
     }
   };
 
@@ -99,8 +97,6 @@ const AgentDashboard = () => {
     
     if (successful) {
       successCallback();
-    } else {
-      toast.error('Failed to copy link');
     }
   };
 
@@ -109,7 +105,6 @@ const AgentDashboard = () => {
     const link = getPublicProfileUrl();
     copyToClipboard(link, () => {
       setLinkCopied(true);
-      toast.success('Link copied to clipboard!');
       setTimeout(() => setLinkCopied(false), 2000);
     });
   };
@@ -119,7 +114,6 @@ const AgentDashboard = () => {
     const link = getPublicProfileUrl();
     copyToClipboard(link, () => {
       setHeaderLinkCopied(true);
-      toast.success('Profile link copied to clipboard!');
       setTimeout(() => setHeaderLinkCopied(false), 2000);
     });
   };
@@ -189,7 +183,6 @@ const AgentDashboard = () => {
         setListings(listingsData || []);
       } catch (error) {
         console.error('Error fetching data:', error);
-        toast.error('Failed to load your data');
       } finally {
         setLoading(false);
       }
@@ -219,10 +212,8 @@ const AgentDashboard = () => {
 
       // Remove the deleted listing from state
       setListings(prevListings => prevListings.filter(listing => listing.id !== listingId));
-      toast.success('Listing deleted successfully');
     } catch (error) {
       console.error('Error deleting listing:', error);
-      toast.error('Failed to delete listing');
     }
   };
   
@@ -268,11 +259,8 @@ const AgentDashboard = () => {
           
           setListings(data);
         }
-        
-        toast.success('Listing updated successfully');
       } catch (error) {
         console.error('[Dashboard] Error fetching listings:', error);
-        toast.error('Failed to load your listings');
       } finally {
         setLoading(false);
       }
@@ -289,8 +277,6 @@ const AgentDashboard = () => {
       // Force show the welcome card
       setShowWelcomeCard(true);
       console.log('[Dashboard] Welcome card has been reset and forced to show');
-      // Optionally show a toast message for developers
-      toast.success('Welcome card has been reset', { duration: 2000 });
     }
   };
 
@@ -551,7 +537,6 @@ const AgentDashboard = () => {
               <CreateListingForm 
                 onSuccess={() => {
                   setActiveTab('listings');
-                  toast.success('Listing created successfully');
                 }} 
               />
             </motion.div>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { Helmet } from 'react-helmet';
 import AgentProfileHeader from '@/components/public/AgentProfileHeader';
 import ListingCard from '@/components/public/ListingCard';
@@ -25,17 +24,28 @@ interface Listing {
   title: string;
   price: number;
   location?: string;
+  city?: string;
   main_image_url?: string;
   description?: string;
   created_at?: string;
+  progress_status?: 'excavation' | 'on_progress' | 'semi_finished' | 'fully_finished';
+  bank_option?: boolean;
 }
 
 const AgentPublicProfile = () => {
   const { agentSlug } = useParams<{ agentSlug: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [agent, setAgent] = useState<AgentProfile | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string | null>(searchParams.get('city'));
+  const [selectedProgress, setSelectedProgress] = useState<string | null>(searchParams.get('progress'));
+  const [selectedBankOption, setSelectedBankOption] = useState<boolean | null>(
+    searchParams.get('bank') ? searchParams.get('bank') === 'true' : null
+  );
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchAgentAndListings = async () => {
@@ -94,7 +104,7 @@ const AgentPublicProfile = () => {
         // Fetch the agent's listings
         const { data: listingsData, error: listingsError } = await supabase
           .from('listings')
-          .select('id, title, price, location, main_image_url, description, created_at')
+          .select('id, title, price, location, city, main_image_url, description, created_at, progress_status, bank_option')
           .eq('user_id', agent ? agent.id : profileData.id)
           .neq('status', 'hidden')
           .order('created_at', { ascending: false });
@@ -102,12 +112,14 @@ const AgentPublicProfile = () => {
         console.log('Fetched listings data:', listingsData);
         console.log('Listings fetch error:', listingsError);
 
-        if (listingsError) throw listingsError;
-        
-        setListings(listingsData || []);
+        if (listingsError) {
+          console.error('Error fetching listings:', listingsError);
+          setListings([]);
+        } else {
+          setListings(listingsData as unknown as Listing[]);
+        }
       } catch (error) {
         console.error('Error fetching agent profile:', error);
-        toast.error('Error loading profile data');
       } finally {
         setLoading(false);
       }
@@ -115,6 +127,46 @@ const AgentPublicProfile = () => {
 
     fetchAgentAndListings();
   }, [agentSlug, navigate, agent?.id]);
+
+  useEffect(() => {
+    if (listings.length > 0) {
+      const cities = Array.from(new Set(listings.map(listing => listing.city).filter(Boolean)));
+      setAvailableCities(cities as string[]);
+    }
+  }, [listings]);
+
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (selectedCity) params.city = selectedCity;
+    if (selectedProgress) params.progress = selectedProgress;
+    if (selectedBankOption !== null) params.bank = selectedBankOption.toString();
+    setSearchParams(params);
+  }, [selectedCity, selectedProgress, selectedBankOption, setSearchParams]);
+
+  const filteredListings = listings.filter(listing => {
+    if (selectedCity && listing.city !== selectedCity) return false;
+    if (selectedProgress && listing.progress_status !== selectedProgress) return false;
+    if (selectedBankOption !== null && listing.bank_option !== selectedBankOption) return false;
+    return true;
+  });
+
+  const resetFilters = () => {
+    setSelectedCity(null);
+    setSelectedProgress(null);
+    setSelectedBankOption(null);
+  };
+
+  const handleCityFilter = (city: string) => {
+    setSelectedCity(selectedCity === city ? null : city);
+  };
+
+  const handleProgressFilter = (progress: string) => {
+    setSelectedProgress(selectedProgress === progress ? null : progress);
+  };
+
+  const handleBankOptionFilter = (hasBank: boolean) => {
+    setSelectedBankOption(selectedBankOption === hasBank ? null : hasBank);
+  };
 
   if (loading) {
     return (
@@ -190,6 +242,84 @@ const AgentPublicProfile = () => {
             />
           </div>
           
+          {/* Categories Section */}
+          <div className="mb-8">
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+              <h2 className="text-2xl font-bold text-[var(--portal-text)]">Categories</h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                className="text-sm"
+              >
+                Reset Filters
+              </Button>
+            </div>
+
+            {/* City Categories */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Cities</h3>
+              <div className="flex flex-wrap gap-2">
+                {availableCities.map((city) => (
+                  <button
+                    key={city}
+                    onClick={() => handleCityFilter(city)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      selectedCity === city
+                        ? 'bg-gold-500 text-black'
+                        : 'bg-[var(--portal-card-bg)] text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]'
+                    }`}
+                  >
+                    {city}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Progress Status Categories */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Progress Status</h3>
+              <div className="flex flex-wrap gap-2">
+                {['excavation', 'on_progress', 'semi_finished', 'fully_finished'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleProgressFilter(status)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      selectedProgress === status
+                        ? 'bg-gold-500 text-black'
+                        : 'bg-[var(--portal-card-bg)] text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]'
+                    }`}
+                  >
+                    {status === 'excavation' ? 'Excavation (ቁፋሮ)' :
+                     status === 'on_progress' ? 'On Progress' :
+                     status === 'semi_finished' ? 'Semi-finished' :
+                     'Fully Finished'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Bank Option Categories */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Bank Option</h3>
+              <div className="flex flex-wrap gap-2">
+                {[true, false].map((hasBank) => (
+                  <button
+                    key={String(hasBank)}
+                    onClick={() => handleBankOptionFilter(hasBank)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      selectedBankOption === hasBank
+                        ? 'bg-gold-500 text-black'
+                        : 'bg-[var(--portal-card-bg)] text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]'
+                    }`}
+                  >
+                    {hasBank ? 'Bank Option Available' : 'No Bank Option'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
           {/* Listings Section */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -209,7 +339,7 @@ const AgentPublicProfile = () => {
             <AnimatePresence>
             {listings.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {listings.map((listing, index) => (
+                  {filteredListings.map((listing, index) => (
                     <motion.div
                       key={listing.id}
                       initial={{ opacity: 0, y: 20 }}

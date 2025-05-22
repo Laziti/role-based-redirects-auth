@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,15 +18,48 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Upload, X, Plus, Info, Camera, ArrowRight, Check, Building, Image, ThumbsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const listingSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
   price: z.coerce.number().positive('Price must be a positive number'),
   location: z.string().min(3, 'Location must be at least 3 characters'),
+  city: z.enum([
+    'Addis Ababa',
+    'Arada',
+    'Bole',
+    'Gulele',
+    'Kirkos',
+    'Kolfe Keranio',
+    'Lideta',
+    'Nifas Silk-Lafto',
+    'Yeka',
+    'Akaki Kality',
+    'Addis Ketema',
+    'Alem Gena',
+    'Bole Bulbula',
+    'Gerji',
+    'Gotera',
+    'Kality',
+    'Kotebe',
+    'Lafto',
+    'Megenagna',
+    'Merkato',
+    'Saris',
+    'Saris Abo',
+    'Summit',
+    'Tulu Dimtu',
+    'Wello Sefer'
+  ], {
+    required_error: 'Please select a city',
+  }),
   phone_number: z.string().optional(),
   whatsapp_link: z.string().optional(),
-  telegram_link: z.string().optional()
+  telegram_link: z.string().optional(),
+  progress_status: z.enum(['excavation', 'on_progress', 'semi_finished', 'fully_finished']),
+  down_payment_percent: z.coerce.number().min(0).max(100).optional(),
+  bank_option: z.boolean().default(false)
 });
 
 type ListingFormValues = z.infer<typeof listingSchema>;
@@ -50,6 +82,8 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
 
   // Add this near other state declarations
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [publicListingUrl, setPublicListingUrl] = useState('');
 
   const form = useForm<ListingFormValues>({
     resolver: zodResolver(listingSchema),
@@ -58,9 +92,13 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       description: '',
       price: undefined,
       location: '',
+      city: 'Addis Ababa', // Set default city to match the enum type
       phone_number: '',
       whatsapp_link: '',
-      telegram_link: ''
+      telegram_link: '',
+      progress_status: 'fully_finished',
+      down_payment_percent: undefined,
+      bank_option: false
     }
   });
 
@@ -123,7 +161,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
     switch (step) {
       case 1:
         // Property Details validation
-        const step1Fields: (keyof ListingFormValues)[] = ['title', 'description', 'price', 'location'];
+        const step1Fields: (keyof ListingFormValues)[] = ['title', 'description', 'price', 'location', 'city'];
         const isStep1Valid = await form.trigger(step1Fields);
         if (!isStep1Valid) {
           const firstError = step1Fields.find(field => form.formState.errors[field]);
@@ -138,7 +176,6 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       case 2:
         // Property Images validation - require at least main image
         if (!mainImage) {
-          toast.error('Main image is required');
           return false;
         }
         return true;
@@ -156,7 +193,6 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       if (mainImage) {
         nextStep(); // Simply advance to step 3 if we have a main image
       } else {
-        toast.error('Main image is required');
         window.scrollTo(0, 0);
       }
       return;
@@ -171,6 +207,19 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
     }
   };
 
+  // Add debug logging for mount/unmount
+  useEffect(() => {
+    console.log('[CreateListingForm] Mounted');
+    return () => {
+      console.log('[CreateListingForm] Unmounted');
+    };
+  }, []);
+
+  // Add debug logging for dialog state
+  useEffect(() => {
+    console.log('[CreateListingForm] showSuccessPopup:', showSuccessPopup);
+  }, [showSuccessPopup]);
+
   const onSubmit = async (values: ListingFormValues) => {
     // Only proceed if submit was actually attempted (button clicked)
     if (!submitAttempted) {
@@ -178,12 +227,10 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
     }
 
     if (!user) {
-      toast.error('You must be logged in to create a listing');
       return;
     }
 
     if (!mainImage) {
-      toast.error('Main image is required');
       setCurrentStep(2);
       return;
     }
@@ -193,10 +240,10 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       values.title && 
       values.description && 
       values.price && 
-      values.location;
+      values.location &&
+      values.city;
     
     if (!requiredFieldsValid) {
-      toast.error('Please fill in all required fields');
       // Go back to the first step
       setCurrentStep(1);
       return;
@@ -250,13 +297,17 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
           description: values.description,
           price: values.price,
           location: values.location,
+            city: values.city,
           main_image_url: mainImagePublicUrl.publicUrl,
           additional_image_urls: additionalImageUrls.length > 0 ? additionalImageUrls : null,
             user_id: user.id,
             status: 'pending',
           phone_number: values.phone_number || null,
           whatsapp_link: values.whatsapp_link || null,
-            telegram_link: values.telegram_link || null
+            telegram_link: values.telegram_link || null,
+            progress_status: values.progress_status,
+            down_payment_percent: values.down_payment_percent,
+            bank_option: values.bank_option
           }
         ])
         .select()
@@ -264,20 +315,33 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
 
       if (listingError) throw listingError;
 
-      toast.success('Listing created successfully!');
+      // Fetch the agent's profile to get their slug
+      const { data: agentProfile, error: agentError } = await supabase
+        .from('profiles')
+        .select('slug')
+        .eq('id', user.id)
+        .single();
+
+      if (agentError) throw agentError;
+
+      // Set the public listing URL with the agent's slug
+      setPublicListingUrl(`/${agentProfile.slug}/listing/${listing.id}`);
+      
+      // Reset form and state
       form.reset();
       setMainImage(null);
       setMainImagePreview(null);
       setAdditionalImages([]);
       setAdditionalImagePreviews([]);
-      setCurrentStep(1); // Reset to first step
-      onSuccess();
+      setCurrentStep(1);
+      
+      // Show success popup
+      setShowSuccessPopup(true);
     } catch (error: any) {
-      console.error('Error creating listing:', error);
-      toast.error(`Failed to create listing: ${error.message}`);
+      console.error('Failed to create listing:', error);
     } finally {
       setIsSubmitting(false);
-      setSubmitAttempted(false); // Reset the submit attempt
+      setSubmitAttempted(false);
     }
   };
 
@@ -292,8 +356,8 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
         {/* Progress bar */}
         <div className="px-8 pt-6">
           <div className="flex items-center mb-4">
-            {[1, 2, 3].map((mapStep) => ( // Renamed step to mapStep to avoid conflict
-              <React.Fragment key={mapStep}>
+            {[1, 2, 3].map((mapStep) => (
+              <div key={mapStep} style={{ display: 'contents' }}>
                 <div 
                   className={`flex items-center justify-center w-8 h-8 rounded-full ${
                     currentStep >= mapStep 
@@ -335,7 +399,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     } transition-colors`} 
                   />
                 )}
-              </React.Fragment>
+              </div>
             ))}
           </div>
           <div className="flex justify-between text-sm text-[var(--portal-text-secondary)] mb-6">
@@ -422,6 +486,102 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                   </div>
 
                   <div className="col-span-1">
+                    <label htmlFor="city" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
+                      City <span className="text-red-500">*</span>
+                    </label>
+                    <select 
+                      id="city"
+                      required
+                      className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
+                      {...form.register('city')}
+                    >
+                      <option value="">Select a city</option>
+                      <option value="Addis Ababa">Addis Ababa</option>
+                      <option value="Arada">Arada</option>
+                      <option value="Bole">Bole</option>
+                      <option value="Gulele">Gulele</option>
+                      <option value="Kirkos">Kirkos</option>
+                      <option value="Kolfe Keranio">Kolfe Keranio</option>
+                      <option value="Lideta">Lideta</option>
+                      <option value="Nifas Silk-Lafto">Nifas Silk-Lafto</option>
+                      <option value="Yeka">Yeka</option>
+                      <option value="Akaki Kality">Akaki Kality</option>
+                      <option value="Addis Ketema">Addis Ketema</option>
+                      <option value="Alem Gena">Alem Gena</option>
+                      <option value="Bole Bulbula">Bole Bulbula</option>
+                      <option value="Gerji">Gerji</option>
+                      <option value="Gotera">Gotera</option>
+                      <option value="Kality">Kality</option>
+                      <option value="Kotebe">Kotebe</option>
+                      <option value="Lafto">Lafto</option>
+                      <option value="Megenagna">Megenagna</option>
+                      <option value="Merkato">Merkato</option>
+                      <option value="Saris">Saris</option>
+                      <option value="Saris Abo">Saris Abo</option>
+                      <option value="Summit">Summit</option>
+                      <option value="Tulu Dimtu">Tulu Dimtu</option>
+                      <option value="Wello Sefer">Wello Sefer</option>
+                    </select>
+                    {form.formState.errors.city && (
+                      <p className="mt-1 text-sm text-red-500">{form.formState.errors.city.message}</p>
+                    )}
+                  </div>
+
+                  <div className="col-span-1">
+                    <label htmlFor="progress_status" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
+                      Progress Status <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="progress_status"
+                      className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
+                      {...form.register('progress_status')}
+                    >
+                      <option value="excavation">Excavation (ቁፋሮ)</option>
+                      <option value="on_progress">On Progress</option>
+                      <option value="semi_finished">Semi-finished</option>
+                      <option value="fully_finished">Fully Finished</option>
+                    </select>
+                    {form.formState.errors.progress_status && (
+                      <p className="mt-1 text-sm text-red-500">{form.formState.errors.progress_status.message}</p>
+                    )}
+                  </div>
+
+                  <div className="col-span-1">
+                    <label htmlFor="down_payment_percent" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
+                      Down Payment (%) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="down_payment_percent"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="e.g. 20"
+                      className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
+                      {...form.register('down_payment_percent')}
+                    />
+                    {form.formState.errors.down_payment_percent && (
+                      <p className="mt-1 text-sm text-red-500">{form.formState.errors.down_payment_percent.message}</p>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="bank_option"
+                        className="h-4 w-4 rounded border-[var(--portal-input-border)] text-gold-500 focus:ring-gold-500"
+                        {...form.register('bank_option')}
+                      />
+                      <label htmlFor="bank_option" className="text-sm font-medium text-[var(--portal-label-text)]">
+                        Bank Option Available
+                      </label>
+                    </div>
+                    {form.formState.errors.bank_option && (
+                      <p className="mt-1 text-sm text-red-500">{form.formState.errors.bank_option.message}</p>
+                    )}
+                  </div>
+
+                  <div className="col-span-1">
                     <label htmlFor="description" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
                       Description <span className="text-red-500">*</span>
                   </label>
@@ -504,12 +664,12 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                               />
                             </label>
                             <p className="text-sm text-[var(--portal-text-secondary)]">or drag and drop</p>
-                          </div>
+                </div>
                           <p className="text-xs text-[var(--portal-text-secondary)] mt-2">
                             PNG, JPG, GIF up to 5MB
                           </p>
                         </>
-                      )}
+              )}
                     </div>
                   </div>
             </div>
@@ -656,6 +816,81 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
           </div>
             </form>
       </div>
+      <AnimatePresence>
+        {showSuccessPopup && (
+          <Dialog open={showSuccessPopup} onOpenChange={setShowSuccessPopup}>
+            <DialogContent>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.85 }}
+                transition={{ duration: 0.35, type: 'spring', bounce: 0.4 }}
+                style={{ position: 'relative', overflow: 'visible' }}
+              >
+                <DialogHeader>
+                  <motion.div
+                    initial={{ scale: 0, rotate: -30 }}
+                    animate={{ scale: 1.1, rotate: 8 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+                    style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}
+                  >
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'linear-gradient(90deg, #FFD700 60%, #FF69B4 100%)',
+                      borderRadius: '50%',
+                      width: 72,
+                      height: 72,
+                      boxShadow: '0 4px 24px 0 #FFD70055',
+                      fontSize: 48,
+                      color: '#fff',
+                    }}>
+                      <motion.span
+                        initial={{ scale: 0, rotate: -30 }}
+                        animate={{ scale: 1.2, rotate: 0 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.1 }}
+                        style={{ display: 'inline-block' }}
+                      >
+                        🎉
+                      </motion.span>
+                    </span>
+                  </motion.div>
+                  <DialogTitle style={{ textAlign: 'center', fontSize: 28, color: '#FFD700', fontWeight: 700 }}>
+                    Congratulations!
+                  </DialogTitle>
+                </DialogHeader>
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  style={{ textAlign: 'center', fontSize: 18, color: '#fff', margin: '16px 0 24px 0' }}
+                >
+                  Your listing is live and ready to shine!<br />Share it with the world or view it now.
+                </motion.p>
+                <DialogFooter style={{ justifyContent: 'center', gap: 16 }}>
+                  <motion.button
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.96 }}
+                    className="bg-gold-500 hover:bg-gold-600 text-black font-semibold rounded-lg px-6 py-2 text-lg shadow-md transition"
+                    onClick={() => window.location.href = publicListingUrl}
+                  >
+                    View Listing
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.96 }}
+                    className="bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-6 py-2 text-lg transition"
+                    onClick={() => { setShowSuccessPopup(false); onSuccess(); }}
+                  >
+                    Close
+                  </motion.button>
+                </DialogFooter>
+              </motion.div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </AnimatePresence>
     </>
   );
 };

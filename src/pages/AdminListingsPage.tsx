@@ -22,7 +22,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, Search, Filter, X, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@/lib/toast';
 import ListingDetailsModal from '@/components/admin/ListingDetailsModal';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -94,10 +93,7 @@ const AdminListingsPage = () => {
       }
       
     } catch (error: any) {
-      toast.error({ 
-        title: 'Error loading listings',
-        description: error.message
-      });
+      console.error('Error loading listings:', error.message);
     } finally {
       setLoading(false);
     }

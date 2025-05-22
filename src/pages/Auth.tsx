@@ -6,9 +6,8 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Check as CheckIcon, Building as BuildingIcon, ArrowLeft, Mail, Lock, User, Phone, Briefcase, FileText } from 'lucide-react';
-import { toast } from '@/lib/toast';
-import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -74,11 +73,6 @@ const Auth = () => {
       if (isSignUp) {
         // Validate receipt file
         if (!receiptFile) {
-          toast.error({
-            title: 'Missing receipt',
-            description: 'Please upload a payment receipt to continue.'
-          });
-          setIsLoading(false);
           return;
         }
 
@@ -135,10 +129,6 @@ const Auth = () => {
             
           if (profileError) throw profileError;
         
-        toast.success({
-          title: 'Account created',
-          description: 'Your account is pending approval.'
-        });
         reset();
         navigate('/pending');
       } else {
@@ -155,18 +145,9 @@ const Auth = () => {
         } else {
           navigate('/');
         }
-        
-        toast.success({
-          title: 'Welcome back!',
-          description: 'You have successfully signed in.'
-        });
       }
     } catch (error: any) {
       console.error('Authentication error:', error);
-      toast.error({
-        title: 'Authentication failed',
-        description: error.message || 'Please check your credentials and try again.'
-      });
     } finally {
       setIsLoading(false);
     }
@@ -177,28 +158,16 @@ const Auth = () => {
       const file = e.target.files[0];
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast.error({
-          title: 'File too large',
-          description: 'The receipt file must be less than 5MB.'
-        });
         return;
       }
       
       // Check file type (image or PDF)
       const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
       if (!validTypes.includes(file.type)) {
-        toast.error({
-          title: 'Invalid file type',
-          description: 'Please upload a JPG, PNG, or PDF file.'
-        });
         return;
       }
       
       setReceiptFile(file);
-      toast.success({
-        title: 'File uploaded',
-        description: 'Receipt file has been uploaded successfully.'
-      });
     }
   };
 

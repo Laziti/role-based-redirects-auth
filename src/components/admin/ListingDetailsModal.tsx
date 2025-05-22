@@ -12,7 +12,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, ExternalLink, Phone, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { toast } from '@/lib/toast';
 import { formatCurrency } from '@/lib/formatters';
 
 interface UserInfo {
@@ -117,24 +116,16 @@ const ListingDetailsModal = ({ listing, open, onOpenChange, onStatusChange }: Li
         
       if (error) throw error;
       
-      toast.success({ 
-        title: 'Status updated',
-        description: `Listing is now ${newStatus}`
-      });
+      // Close the modal
+      onOpenChange(false);
       
       // Call the callback to refresh the listings list
       if (onStatusChange) {
         onStatusChange();
       }
       
-      // Close the modal
-      onOpenChange(false);
-      
     } catch (error: any) {
-      toast.error({ 
-        title: 'Error updating listing',
-        description: error.message
-      });
+      console.error('Error updating listing:', error);
     } finally {
       setUpdating(false);
     }

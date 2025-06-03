@@ -86,7 +86,6 @@ export interface Database {
         Args: { first_name: string; last_name: string }
         Returns: string
       }
-      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

@@ -5,15 +5,16 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ImageGalleryProps {
-  mainImage: string;
-  additionalImages?: string[];
+  images: string[];
 }
 
-const ImageGallery: React.FC<ImageGalleryProps> = ({ mainImage, additionalImages = [] }) => {
+const ImageGallery: React.FC<ImageGalleryProps> = ({ images = [] }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   
-  const allImages = [mainImage, ...(additionalImages || [])].filter(Boolean);
+  const allImages = images.filter(Boolean);
+  const mainImage = allImages[0];
+  const additionalImages = allImages.slice(1);
   
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));

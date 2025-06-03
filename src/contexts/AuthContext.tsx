@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,30 +39,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
 
         // If session exists, fetch user role and status
         if (session?.user) {
-          fetchUserRole(session.user.id);
-          fetchUserStatus(session.user.id);
+          await Promise.all([
+            fetchUserRole(session.user.id),
+            fetchUserStatus(session.user.id)
+          ]);
         } else {
           setUserRole(null);
           setUserStatus(null);
+        }
+        
+        if (event === 'INITIAL_SESSION') {
+          setLoading(false);
         }
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       
       // If session exists, fetch user role and status
       if (session?.user) {
-        fetchUserRole(session.user.id);
-        fetchUserStatus(session.user.id);
+        await Promise.all([
+          fetchUserRole(session.user.id),
+          fetchUserStatus(session.user.id)
+        ]);
       }
       
       setLoading(false);
@@ -75,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch user role from the database
   const fetchUserRole = async (userId: string) => {
     try {
+      console.log('Fetching role for user:', userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -85,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching user role:', error);
         setUserRole(null);
       } else {
+        console.log('User role fetched:', data.role);
         setUserRole(data.role as 'super_admin' | 'agent');
       }
     } catch (error) {
@@ -96,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch user status from the database
   const fetchUserStatus = async (userId: string) => {
     try {
+      console.log('Fetching status for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('status')
@@ -106,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching user status:', error);
         setUserStatus(null);
       } else {
+        console.log('User status fetched:', data.status);
         setUserStatus(data.status);
       }
     } catch (error) {
@@ -117,7 +132,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Attempting to sign in:', email);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        console.error('Sign in error:', error);
+      } else {
+        console.log('Sign in successful');
+      }
       return { error };
     } catch (error) {
       console.error('Error in signIn:', error);
@@ -163,8 +184,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Update user role and status
       if (newSession?.user) {
-        fetchUserRole(newSession.user.id);
-        fetchUserStatus(newSession.user.id);
+        await Promise.all([
+          fetchUserRole(newSession.user.id),
+          fetchUserStatus(newSession.user.id)
+        ]);
       }
     } catch (error) {
       console.error('Error refreshing session:', error);

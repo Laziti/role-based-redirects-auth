@@ -31,7 +31,7 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, user, userRole, userStatus } = useAuth();
+  const { signIn, signUp, user, userRole, userStatus, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -49,18 +49,25 @@ const Auth = () => {
 
   // Redirect authenticated users
   useEffect(() => {
-    if (user && userRole) {
+    console.log('Auth redirect check:', { user: !!user, userRole, userStatus, loading });
+    
+    if (!loading && user && userRole) {
+      console.log('Redirecting user with role:', userRole, 'status:', userStatus);
+      
       if (userRole === 'super_admin') {
+        console.log('Redirecting super admin to /admin');
         navigate('/admin');
       } else if (userRole === 'agent') {
         if (userStatus === 'approved') {
+          console.log('Redirecting approved agent to /dashboard');
           navigate('/dashboard');
         } else if (userStatus === 'pending_approval') {
+          console.log('Redirecting pending agent to /pending');
           navigate('/pending');
         }
       }
     }
-  }, [user, userRole, userStatus, navigate]);
+  }, [user, userRole, userStatus, navigate, loading]);
 
   const signInForm = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -85,6 +92,7 @@ const Auth = () => {
   const onSignIn = async (data: SignInFormValues) => {
     setIsLoading(true);
     try {
+      console.log('Starting sign in process for:', data.email);
       const { error } = await signIn(data.email, data.password);
       
       if (error) throw error;

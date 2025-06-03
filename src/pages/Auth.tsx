@@ -407,7 +407,9 @@ const Auth = () => {
                   />
                 </div>
                 {signUpForm.formState.errors.paymentReceipt && (
-                  <p className="mt-1 text-sm text-red-500">{signUpForm.formState.errors.paymentReceipt.message}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {String(signUpForm.formState.errors.paymentReceipt.message)}
+                  </p>
                 )}
                 <p className="mt-1 text-xs text-[var(--portal-text-secondary)]">
                   Upload your payment receipt (max 5MB, PDF or image)

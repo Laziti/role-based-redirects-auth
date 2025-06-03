@@ -5,9 +5,22 @@ import { Button } from '@/components/ui/button';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check as CheckIcon, Building as BuildingIcon, ArrowLeft, Mail, Lock, User, Phone, Briefcase, FileText } from 'lucide-react';
+import { Check as CheckIcon, Building as BuildingIcon, ArrowLeft, Mail, Lock, User, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const REAL_ESTATE_COMPANIES = [
+  "Noah Real Estate",
+  "Gift Real Estate",
+  "Flintstone Homes",
+  "Afro-Tsion Real Estate",
+  "Ayat Share Company",
+  "Sunshine Real Estate",
+  "Zemen Bank Real Estate",
+  "Tsehay Real Estate",
+  "Other"
+] as const;
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -18,7 +31,8 @@ const signUpSchema = signInSchema.extend({
   firstName: z.string().min(1, { message: 'First name is required' }),
   lastName: z.string().min(1, { message: 'Last name is required' }),
   phoneNumber: z.string().min(10, { message: 'Valid phone number is required' }),
-  career: z.string().min(1, { message: 'Career is required' }),
+  company: z.string().min(1, { message: 'Company is required' }),
+  otherCompany: z.string().optional(),
 });
 
 type SignInFormValues = z.infer<typeof signInSchema>;
@@ -28,7 +42,7 @@ type FormValues = SignUpFormValues;
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [showOtherCompany, setShowOtherCompany] = useState(false);
   const { signIn, signUp, user, userRole } = useAuth();
   const navigate = useNavigate();
 
@@ -49,6 +63,8 @@ const Auth = () => {
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
+    setValue,
   } = useForm<FormValues>({
     resolver: zodResolver(isSignUp ? signUpSchema : signInSchema),
     defaultValues: {
@@ -57,42 +73,20 @@ const Auth = () => {
       firstName: '',
       lastName: '',
       phoneNumber: '',
-      career: '',
+      company: '',
+      otherCompany: '',
     },
   });
 
   useEffect(() => {
     // Reset form when switching between sign-in and sign-up
     reset();
-    setReceiptFile(null);
   }, [isSignUp, reset]);
 
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
       if (isSignUp) {
-        // Validate receipt file
-        if (!receiptFile) {
-          return;
-        }
-
-        // First, upload the receipt file
-          const fileExt = receiptFile.name.split('.').pop();
-          const fileName = `${Date.now()}.${fileExt}`;
-          const filePath = `payment_receipts/${fileName}`;
-          
-          // Upload receipt file to storage
-          const { error: uploadError } = await supabase.storage
-            .from('files')
-            .upload(filePath, receiptFile);
-            
-          if (uploadError) throw uploadError;
-          
-        // Get public URL for the receipt
-          const { data: { publicUrl } } = supabase.storage
-            .from('files')
-            .getPublicUrl(filePath);
-            
         // Sign up user with metadata
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: data.email,
@@ -102,8 +96,7 @@ const Auth = () => {
               first_name: data.firstName,
               last_name: data.lastName,
               phone_number: data.phoneNumber,
-              career: data.career,
-              payment_receipt_url: publicUrl
+              company: data.company === 'Other' ? data.otherCompany : data.company
             }
           }
         });
@@ -113,24 +106,20 @@ const Auth = () => {
         if (!signUpData.user) {
           throw new Error('Failed to create user account');
         }
-            
-          // Update profile with additional information
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              first_name: data.firstName,
-              last_name: data.lastName,
-              phone_number: data.phoneNumber,
-              career: data.career,
-            payment_receipt_url: publicUrl,
-            status: 'pending_approval'
-            })
-          .eq('id', signUpData.user.id);
-            
-          if (profileError) throw profileError;
+
+        // Add user role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: signUpData.user.id,
+            role: 'agent'
+          });
+
+        if (roleError) throw roleError;
         
         reset();
-        navigate('/pending');
+        // Redirect to agent dashboard
+        navigate('/dashboard');
       } else {
         // Sign in
         const { error } = await signIn(data.email, data.password);
@@ -141,143 +130,55 @@ const Auth = () => {
         if (userRole === 'super_admin') {
           navigate('/admin');
         } else if (userRole === 'agent') {
-          navigate('/agent');
+          navigate('/dashboard');
         } else {
           navigate('/');
         }
       }
     } catch (error: any) {
       console.error('Authentication error:', error);
+      // Show error message to user
+      alert(error.message || 'An error occurred during authentication');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        return;
-      }
-      
-      // Check file type (image or PDF)
-      const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-      if (!validTypes.includes(file.type)) {
-        return;
-      }
-      
-      setReceiptFile(file);
+  const company = watch('company');
+
+  useEffect(() => {
+    if (company === 'Other') {
+      setShowOtherCompany(true);
+    } else {
+      setShowOtherCompany(false);
+      setValue('otherCompany', '');
     }
-  };
+  }, [company, setValue]);
 
   return (
-    <div className="flex min-h-screen bg-[var(--portal-bg)]">
-      {/* Full-width form section with enhanced design */}
-      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 relative overflow-hidden">
-        {/* Background gradient effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gold-500/5 via-transparent to-gold-500/5 pointer-events-none"></div>
-        
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0" style={{ 
-          backgroundImage: 'linear-gradient(var(--portal-border) 1px, transparent 1px), linear-gradient(90deg, var(--portal-border) 1px, transparent 1px)', 
-          backgroundSize: '40px 40px',
-          opacity: 0.05
-        }}></div>
-        
-        {/* Animated background elements - fewer and more spread out */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Main gradient circles */}
-          <motion.div 
-            className="absolute w-[1000px] h-[1000px] rounded-full bg-gradient-to-br from-gold-500/10 to-transparent -top-[400px] left-[20%] blur-3xl"
-            animate={{ 
-              scale: [1, 1.1, 1],
-              opacity: [0.3, 0.2, 0.3],
-            }}
-            transition={{
-              duration: 12,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-          
-          <motion.div 
-            className="absolute w-[800px] h-[800px] rounded-full bg-gradient-to-tr from-gold-500/8 to-transparent -bottom-[300px] right-[20%] blur-3xl"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.2, 0.3, 0.2],
-            }}
-            transition={{
-              duration: 15,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1
-            }}
-          />
-
-          {/* Just 3 floating elements spread across the whole width */}
-          <motion.div
-            className="absolute w-32 h-32 rounded-2xl bg-gradient-to-br from-gold-500/15 to-gold-500/5 top-[20%] left-[15%] backdrop-blur-sm border border-gold-500/10"
-            style={{ transform: 'perspective(1000px) rotateX(10deg) rotateY(-10deg)' }}
-            animate={{ 
-              y: [0, -30, 0],
-              rotateZ: [0, 5, 0],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-          
-          <motion.div
-            className="absolute w-20 h-20 rounded-xl bg-gradient-to-tr from-gold-500/10 to-transparent bottom-[30%] right-[15%] backdrop-blur-sm border border-gold-500/10"
-            style={{ transform: 'perspective(1000px) rotateX(-5deg) rotateY(10deg)' }}
-            animate={{
-              y: [0, 40, 0],
-              rotateZ: [0, -3, 0],
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 2
-            }}
-          />
-            </div>
-
+    <div className="min-h-screen bg-[var(--portal-bg)] flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
         <motion.div 
-          className="mx-auto w-full max-w-md relative z-10"
+          className="bg-[var(--portal-card-bg)] rounded-2xl shadow-xl p-8 border border-[var(--portal-border)]"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex flex-col items-center mb-8">
-            <motion.div 
-              className="h-16 w-16 rounded-2xl bg-gradient-to-br from-gold-500 to-gold-400 flex items-center justify-center text-black shadow-lg mb-4"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <BuildingIcon className="h-10 w-10" />
-            </motion.div>
-            <Link 
-              to="/" 
-              className="text-sm text-gold-400 hover:text-gold-500 flex items-center gap-1 transition-colors group"
-            >
-              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-              Back to Home
-            </Link>
+          <div className="flex justify-center mb-8">
+            <div className="h-12 w-12 rounded-xl bg-gold-500 flex items-center justify-center text-black shadow-lg">
+              <BuildingIcon className="h-6 w-6" />
+            </div>
           </div>
 
-          <motion.h2 
-            className="text-4xl font-extrabold text-center mb-2 bg-gradient-to-r from-gold-500 to-gold-300 bg-clip-text text-transparent"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
+          <motion.h1 
+            className="text-2xl font-bold text-center text-[var(--portal-text)] mb-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
-          </motion.h2>
-          
+            {isSignUp ? 'Create an Account' : 'Welcome Back'}
+          </motion.h1>
+
           <motion.p 
             className="text-center text-[var(--portal-text-secondary)] mb-8"
             initial={{ opacity: 0 }}
@@ -295,170 +196,158 @@ const Auth = () => {
             transition={{ duration: 0.5, delay: 0.4 }}
           >
             <div className="space-y-4">
-            <div>
+              <div>
                 <label htmlFor="email" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                Email
-              </label>
+                  Email
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Mail className="h-5 w-5 text-gold-500/50" />
                   </div>
-                <input
-                  id="email"
-                  type="email"
-                  {...register('email')}
+                  <input
+                    id="email"
+                    type="email"
+                    {...register('email')}
                     className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
-                  placeholder="your@email.com"
-                />
+                    placeholder="your@email.com"
+                  />
                 </div>
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
                 )}
-            </div>
+              </div>
 
-            <div>
+              <div>
                 <label htmlFor="password" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                Password
-              </label>
+                  Password
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Lock className="h-5 w-5 text-gold-500/50" />
                   </div>
-                <input
-                  id="password"
-                  type="password"
-                  {...register('password')}
+                  <input
+                    id="password"
+                    type="password"
+                    {...register('password')}
                     className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
-                  placeholder="••••••••"
-                />
+                    placeholder="••••••••"
+                  />
                 </div>
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
                 )}
-            </div>
+              </div>
 
-            {isSignUp && (
+              {isSignUp && (
                 <motion.div 
                   className="space-y-4"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   transition={{ duration: 0.3 }}
                 >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
                       <label htmlFor="firstName" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                      First Name
-                    </label>
+                        First Name
+                      </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <User className="h-5 w-5 text-gold-500/50" />
                         </div>
-                      <input
-                        id="firstName"
-                        type="text"
-                        {...register('firstName')}
+                        <input
+                          id="firstName"
+                          type="text"
+                          {...register('firstName')}
                           className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
-                        placeholder="John"
-                      />
+                          placeholder="John"
+                        />
                       </div>
                       {errors.firstName && (
                         <p className="mt-1 text-sm text-red-500">{errors.firstName.message}</p>
                       )}
-                  </div>
+                    </div>
 
-                  <div>
+                    <div>
                       <label htmlFor="lastName" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                      Last Name
-                    </label>
+                        Last Name
+                      </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <User className="h-5 w-5 text-gold-500/50" />
                         </div>
-                      <input
-                        id="lastName"
-                        type="text"
-                        {...register('lastName')}
+                        <input
+                          id="lastName"
+                          type="text"
+                          {...register('lastName')}
                           className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
-                        placeholder="Doe"
-                      />
+                          placeholder="Doe"
+                        />
                       </div>
                       {errors.lastName && (
                         <p className="mt-1 text-sm text-red-500">{errors.lastName.message}</p>
                       )}
+                    </div>
                   </div>
-                </div>
 
-                <div>
+                  <div>
                     <label htmlFor="phoneNumber" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                    Phone Number
-                  </label>
+                      Phone Number
+                    </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Phone className="h-5 w-5 text-gold-500/50" />
                       </div>
-                    <input
-                      id="phoneNumber"
-                      type="tel"
-                      {...register('phoneNumber')}
+                      <input
+                        id="phoneNumber"
+                        type="tel"
+                        {...register('phoneNumber')}
                         className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
-                      placeholder="+1234567890"
-                    />
+                        placeholder="+251 91 234 5678"
+                      />
                     </div>
                     {errors.phoneNumber && (
                       <p className="mt-1 text-sm text-red-500">{errors.phoneNumber.message}</p>
                     )}
-                </div>
-
-                <div>
-                    <label htmlFor="career" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                    Career
-                  </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Briefcase className="h-5 w-5 text-gold-500/50" />
-                      </div>
-                    <input
-                      id="career"
-                      type="text"
-                      {...register('career')}
-                        className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
-                      placeholder="Real Estate Agent"
-                    />
-                    </div>
-                    {errors.career && (
-                      <p className="mt-1 text-sm text-red-500">{errors.career.message}</p>
-                    )}
-                </div>
-
-                <div>
-                    <label htmlFor="receipt" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                      Upload Payment Receipt
-                  </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FileText className="h-5 w-5 text-gold-500/50" />
-                      </div>
-                    <input
-                      id="receipt"
-                      type="file"
-                      accept="image/jpeg,image/png,image/jpg,application/pdf"
-                      onChange={handleFileChange}
-                        className="dark-input w-full pl-10 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gold-500/10 file:text-gold-500 hover:file:bg-gold-500/20"
-                    />
-                    </div>
-                    {receiptFile && (
-                      <p className="mt-2 text-sm text-green-500 flex items-center gap-1">
-                        <CheckIcon className="h-4 w-4" />
-                        File selected: {receiptFile.name}
-                      </p>
-                    )}
-                    <p className="mt-2 text-sm text-gold-400">
-                      Upload proof of payment to proceed with registration.
-                    </p>
                   </div>
+
+                  <div>
+                    <label htmlFor="company" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
+                      Real Estate Company
+                    </label>
+                    <select
+                      id="company"
+                      {...register('company')}
+                      className="dark-input w-full px-4 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
+                    >
+                      <option value="">Select your company</option>
+                      {REAL_ESTATE_COMPANIES.map((company) => (
+                        <option key={company} value={company}>
+                          {company}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.company && (
+                      <p className="mt-1 text-sm text-red-500">{errors.company.message}</p>
+                    )}
+                  </div>
+
+                  {showOtherCompany && (
+                    <div>
+                      <label htmlFor="otherCompany" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
+                        Company Name
+                      </label>
+                      <input
+                        id="otherCompany"
+                        type="text"
+                        {...register('otherCompany')}
+                        className="dark-input w-full px-4 py-3 rounded-xl border-[var(--portal-input-border)] focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all duration-200"
+                        placeholder="Enter your company name"
+                      />
+                    </div>
+                  )}
                 </motion.div>
               )}
-                </div>
+            </div>
 
             <motion.div
               whileHover={{ scale: 1.02 }}
@@ -495,7 +384,6 @@ const Auth = () => {
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 reset();
-                setReceiptFile(null);
               }}
               className="text-sm text-gold-400 hover:text-gold-500 transition-colors"
             >

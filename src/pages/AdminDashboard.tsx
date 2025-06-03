@@ -1,157 +1,64 @@
 import React, { useEffect, useState } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import AdminSidebar from '@/components/AdminSidebar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { Users, List, Bell } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface DashboardStats {
-  totalAgents: number;
+  totalUsers: number;
   totalListings: number;
-  pendingUsers: number;
-  activeListings: number;
-  pendingListings: number;
+  recentActivities: Activity[];
 }
 
-interface RecentActivity {
+interface Activity {
   id: string;
-  type: string; // 'user_registered' | 'listing_created'
+  type: 'user_registered' | 'payment_pending' | 'listing_created' | 'user_approved';
   title: string;
   description: string;
   date: string;
+  priority?: 'low' | 'medium' | 'high';
 }
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
-    totalAgents: 0,
+    totalUsers: 0,
     totalListings: 0,
-    pendingUsers: 0,
-    activeListings: 0,
-    pendingListings: 0
+    recentActivities: []
   });
   const [loading, setLoading] = useState(true);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      setLoading(true);
       try {
-        // Get count of agents
-        const { count: agentsCount, error: agentsError } = await supabase
-          .from('user_roles')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', 'agent');
-        
-        if (agentsError) throw agentsError;
-
-        // Get count of pending users
-        const { count: pendingCount, error: pendingError } = await supabase
+        // Fetch total users
+        const { count: usersCount } = await supabase
           .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending_approval');
-        
-        if (pendingError) throw pendingError;
+          .select('*', { count: 'exact', head: true });
 
-        // Get count of all listings
-        const { count: listingsCount, error: listingsError } = await supabase
+        // Fetch total listings
+        const { count: listingsCount } = await supabase
           .from('listings')
           .select('*', { count: 'exact', head: true });
-        
-        if (listingsError) throw listingsError;
 
-        // Get count of active listings
-        const { count: activeListingsCount, error: activeListingsError } = await supabase
-          .from('listings')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'active');
-        
-        if (activeListingsError) throw activeListingsError;
-
-        // Get count of pending listings
-        const { count: pendingListingsCount, error: pendingListingsError } = await supabase
-          .from('listings')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending');
-        
-        if (pendingListingsError) throw pendingListingsError;
+        // Fetch recent activities
+        const { data: recentActivities } = await supabase
+          .from('activities')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
 
         setStats({
-          totalAgents: agentsCount || 0,
+          totalUsers: usersCount || 0,
           totalListings: listingsCount || 0,
-          pendingUsers: pendingCount || 0,
-          activeListings: activeListingsCount || 0,
-          pendingListings: pendingListingsCount || 0
+          recentActivities: recentActivities || []
         });
 
-        // Fetch recent activities (latest users and listings)
-        await fetchRecentActivities();
-      } catch (error: any) {
-        console.error(`Error loading dashboard stats: ${error.message}`);
-      } finally {
         setLoading(false);
-      }
-    };
-
-    const fetchRecentActivities = async () => {
-      try {
-        // Get recent users
-        const { data: recentUsers, error: usersError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, status, updated_at')
-          .order('updated_at', { ascending: false })
-          .limit(3);
-          
-        if (usersError) throw usersError;
-
-        // Get recent listings
-        const { data: recentListings, error: listingsError } = await supabase
-          .from('listings')
-          .select('id, title, status, created_at, user_id')
-          .order('created_at', { ascending: false })
-          .limit(3);
-          
-        if (listingsError) throw listingsError;
-        
-        // Get user ids from listings to fetch their names
-        const userIds = recentListings.map(listing => listing.user_id);
-        const { data: userProfiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
-          .in('id', userIds);
-          
-        if (profilesError) throw profilesError;
-        
-        // Create a map of user ids to names
-        const userMap = new Map();
-        userProfiles?.forEach(profile => {
-          userMap.set(profile.id, `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User');
-        });
-
-        // Format recent users
-        const userActivities = recentUsers.map(user => ({
-          id: `user-${user.id}`,
-          type: 'user_registered',
-          title: 'New User Registration',
-          description: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'New user',
-          date: user.updated_at
-        }));
-
-        // Format recent listings
-        const listingActivities = recentListings.map(listing => ({
-          id: `listing-${listing.id}`,
-          type: 'listing_created',
-          title: 'New Listing',
-          description: `${listing.title} by ${userMap.get(listing.user_id) || 'Unknown User'}`,
-          date: listing.created_at
-        }));
-
-        // Combine and sort by date
-        const combinedActivities = [...userActivities, ...listingActivities]
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 5);
-
-        setRecentActivities(combinedActivities);
       } catch (error) {
-        console.error('Error fetching recent activities:', error);
+        console.error('Error fetching dashboard data:', error);
+        setLoading(false);
       }
     };
 
@@ -178,93 +85,104 @@ const AdminDashboard = () => {
               <h1 className="ml-4 text-xl font-semibold">Dashboard Overview</h1>
             </div>
           </div>
-          <div className="p-6">
-            <div className="grid gap-6 sm:grid-cols-3 lg:grid-cols-5 mb-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {loading ? "Loading..." : stats.totalAgents}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Listings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {loading ? "Loading..." : stats.totalListings}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {loading ? "Loading..." : stats.pendingUsers}
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="p-6 space-y-6 overflow-auto">
+            {/* Analytics Cards */}
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-[var(--portal-text)]">Total Users</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center">
+                      <Users className="h-5 w-5 text-gold-500 mr-2" />
+                      <div className="text-2xl font-bold text-[var(--portal-text)]">
+                        {loading ? "..." : stats.totalUsers}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Active Listings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {loading ? "Loading..." : stats.activeListings}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Listings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {loading ? "Loading..." : stats.pendingListings}
-                  </div>
-                </CardContent>
-              </Card>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-[var(--portal-text)]">Total Listings</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center">
+                      <List className="h-5 w-5 text-gold-500 mr-2" />
+                      <div className="text-2xl font-bold text-[var(--portal-text)]">
+                        {loading ? "..." : stats.totalListings}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </div>
 
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-4">Loading recent activities...</div>
-                ) : recentActivities.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500">No recent activities found</div>
-                ) : (
-                  <div className="space-y-4">
-                    {recentActivities.map((activity) => (
-                      <div key={activity.id} className="flex items-start">
-                        <div className={`w-2 h-2 mt-2 rounded-full ${
-                          activity.type === 'user_registered' 
-                            ? 'bg-blue-500' 
-                            : 'bg-green-500'
-                        }`} />
-                        <div className="ml-3">
-                          <p className="font-medium">{activity.title}</p>
-                          <p className="text-sm text-gray-500">{activity.description}</p>
-                          <p className="text-xs text-gray-400">{formatDate(activity.date)}</p>
-                        </div>
-                      </div>
-                    ))}
+            {/* Recent Activity */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg font-semibold text-[var(--portal-text)]">Recent Activity</CardTitle>
+                      <CardDescription className="text-[var(--portal-text-secondary)]">
+                        Latest updates from your platform
+                      </CardDescription>
+                    </div>
+                    <Bell className="h-5 w-5 text-[var(--portal-text-secondary)]" />
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="text-center py-4 text-[var(--portal-text-secondary)]">Loading activities...</div>
+                  ) : stats.recentActivities.length === 0 ? (
+                    <div className="text-center py-4 text-[var(--portal-text-secondary)]">No recent activities</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {stats.recentActivities.map((activity) => (
+                        <div key={activity.id} className="flex items-start space-x-4 p-3 rounded-lg transition-colors hover:bg-[var(--portal-bg-hover)]">
+                          <div className={`w-2 h-2 mt-2 rounded-full ${
+                            activity.type === 'user_registered' ? 'bg-blue-500' :
+                            activity.type === 'payment_pending' ? 'bg-amber-500' :
+                            activity.type === 'listing_created' ? 'bg-emerald-500' :
+                            'bg-gold-500'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-[var(--portal-text)]">{activity.title}</p>
+                            <p className="text-sm text-[var(--portal-text-secondary)]">{activity.description}</p>
+                            <p className="text-xs text-[var(--portal-text-secondary)] mt-1">{formatDate(activity.date)}</p>
+                          </div>
+                          {activity.priority && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              activity.priority === 'high' ? 'bg-red-500/10 text-red-500' :
+                              activity.priority === 'medium' ? 'bg-amber-500/10 text-amber-500' :
+                              'bg-emerald-500/10 text-emerald-500'
+                            }`}>
+                              {activity.priority}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
         </SidebarInset>
       </div>

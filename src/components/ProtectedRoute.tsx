@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,7 +36,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     // Redirect agent to agent dashboard or pending page depending on status
     if (userRole === 'agent') {
       if (userStatus === 'approved') {
-        return <Navigate to="/agent" replace />;
+        return <Navigate to="/dashboard" replace />;
       } else {
         return <Navigate to="/pending" replace />;
       }
@@ -53,7 +52,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
     
     if (userRole === 'agent' && userStatus === 'approved') {
-      return <Navigate to="/agent" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
     
     if (userRole === 'super_admin') {

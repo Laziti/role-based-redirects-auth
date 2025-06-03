@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
       listings: {
@@ -131,6 +131,53 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_requests: {
+        Row: {
+          id: string
+          user_id: string
+          plan_id: string
+          receipt_path: string
+          status: Database["public"]["Enums"]["subscription_request_status"]
+          amount: number
+          duration: string
+          listings_per_month: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          plan_id: string
+          receipt_path: string
+          status?: Database["public"]["Enums"]["subscription_request_status"]
+          amount: number
+          duration: string
+          listings_per_month: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          plan_id?: string
+          receipt_path?: string
+          status?: Database["public"]["Enums"]["subscription_request_status"]
+          amount?: number
+          duration?: string
+          listings_per_month?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -153,6 +200,7 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "agent"
+      subscription_request_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -269,6 +317,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "agent"],
+      subscription_request_status: ["pending", "approved", "rejected"]
     },
   },
 } as const
+
+export type SubscriptionRequest = Database["public"]["Tables"]["subscription_requests"]["Row"];

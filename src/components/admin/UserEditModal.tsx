@@ -1,150 +1,322 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+type ListingLimitType = 'day' | 'week' | 'month' | 'year' | 'unlimited';
+type SubscriptionStatus = 'free' | 'pro';
+
+interface ListingLimit {
+  type: ListingLimitType;
+  value?: number;
+}
 
 interface User {
   id: string;
+  email: string;
   first_name: string;
   last_name: string;
   phone_number: string;
-  career: string;
+  status: 'active' | 'inactive';
+  career?: string;
+  created_at: string;
+  listing_count: number;
+  subscription_status: SubscriptionStatus;
+  subscription_end?: string;
+  listing_limit?: ListingLimit;
+  social_links?: Record<string, string>;
 }
 
 interface UserEditModalProps {
-  user: User;
+  user: User | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
+  onUserUpdated: () => void;
 }
 
-type FormValues = {
-  first_name: string;
-  last_name: string;
-  phone_number: string;
-  career: string;
-};
+const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModalProps) => {
+  const [formData, setFormData] = useState<Partial<User>>({});
+  const [loading, setLoading] = useState(false);
 
-const UserEditModal = ({ user, open, onOpenChange, onSuccess }: UserEditModalProps) => {
-  const form = useForm<FormValues>({
-    defaultValues: {
+  useEffect(() => {
+    if (user) {
+      setFormData({
       first_name: user.first_name || '',
       last_name: user.last_name || '',
       phone_number: user.phone_number || '',
+        status: user.status || 'inactive',
       career: user.career || '',
+        subscription_status: user.subscription_status || 'free',
+        subscription_end: user.subscription_end,
+        listing_limit: user.listing_limit || { type: 'month', value: 5 },
+        social_links: user.social_links || {}
+      });
     }
-  });
+  }, [user]);
 
-  const handleSubmit = async (values: FormValues) => {
+  const handleSubmit = async () => {
+    if (!user || !formData) return;
+
+    setLoading(true);
     try {
+      // Validate required fields
+      if (!formData.first_name?.trim() || !formData.last_name?.trim()) {
+        toast.error('First name and last name are required');
+        return;
+      }
+
+      // Calculate subscription end date if changing to pro
+      let subscription_end = formData.subscription_end;
+      if (formData.subscription_status === 'pro' && user.subscription_status === 'free') {
+        const now = new Date();
+        subscription_end = new Date(now.setMonth(now.getMonth() + 1)).toISOString();
+      } else if (formData.subscription_status === 'free') {
+        subscription_end = null;
+      }
+
+      // Prepare update data with proper null handling
+      const updateData = {
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        phone_number: formData.phone_number?.trim() || null,
+        status: formData.status || 'inactive',
+        career: formData.career?.trim() || null,
+        subscription_status: formData.subscription_status || 'free',
+        subscription_end,
+        listing_limit: formData.listing_limit || { type: 'month', value: 5 },
+        social_links: formData.social_links || {}
+      };
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          first_name: values.first_name,
-          last_name: values.last_name,
-          phone_number: values.phone_number,
-          career: values.career
-        })
-        .eq('id', user.id);
+        .update(updateData)
+        .eq('id', user.id)
+        .select()
+        .single();
       
       if (error) throw error;
       
-      toast.success('User information updated successfully');
+      toast.success('User updated successfully');
+      onUserUpdated();
       onOpenChange(false);
-      onSuccess();
     } catch (error: any) {
-      toast.error(`Error updating user: ${error.message}`);
+      console.error('Error updating user:', error);
+      toast.error(error.message || 'Error updating user');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const updateSocialLink = (platform: keyof User['social_links'], value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      social_links: {
+        ...(prev.social_links || {}),
+        [platform]: value.trim()
+      }
+    }));
+  };
+
+  if (!user) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 py-4">
           <DialogTitle>Edit User</DialogTitle>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="first_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="First name" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="last_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Last name" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+        <ScrollArea className="flex-1 px-6">
+          <div className="space-y-6 py-4">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Basic Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone_number || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="career">Career/Profession</Label>
+                  <Input
+                    id="career"
+                    value={formData.career || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, career: e.target.value }))}
+                  />
+                </div>
+              </div>
             </div>
 
-            <FormField
-              control={form.control}
-              name="phone_number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Phone number" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            {/* Social Links */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Social Links</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="facebook">Facebook</Label>
+                  <Input
+                    id="facebook"
+                    value={formData.social_links?.facebook || ''}
+                    onChange={(e) => updateSocialLink('facebook', e.target.value)}
+                    placeholder="https://facebook.com/username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="twitter">Twitter</Label>
+                  <Input
+                    id="twitter"
+                    value={formData.social_links?.twitter || ''}
+                    onChange={(e) => updateSocialLink('twitter', e.target.value)}
+                    placeholder="https://twitter.com/username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="linkedin">LinkedIn</Label>
+                  <Input
+                    id="linkedin"
+                    value={formData.social_links?.linkedin || ''}
+                    onChange={(e) => updateSocialLink('linkedin', e.target.value)}
+                    placeholder="https://linkedin.com/in/username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instagram">Instagram</Label>
+                  <Input
+                    id="instagram"
+                    value={formData.social_links?.instagram || ''}
+                    onChange={(e) => updateSocialLink('instagram', e.target.value)}
+                    placeholder="https://instagram.com/username"
+                  />
+                </div>
+              </div>
+            </div>
 
-            <FormField
-              control={form.control}
-              name="career"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Career/Profession</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Career/Profession" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            {/* Account Settings */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Account Settings</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status *</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value: 'active' | 'inactive') => setFormData(prev => ({ ...prev, status: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subscription">Subscription Type *</Label>
+                  <Select
+                    value={formData.subscription_status}
+                    onValueChange={(value: 'free' | 'pro') => setFormData(prev => ({ ...prev, subscription_status: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select subscription type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="pro">Pro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="limit_type">Listing Limit Type *</Label>
+                  <Select
+                    value={formData.listing_limit?.type}
+                    onValueChange={(value: 'day' | 'week' | 'month' | 'year' | 'unlimited') => 
+                      setFormData(prev => ({
+                        ...prev,
+                        listing_limit: {
+                          type: value,
+                          value: value === 'unlimited' ? undefined : (prev.listing_limit?.value || 5)
+                        }
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select limit type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">Per Day</SelectItem>
+                      <SelectItem value="week">Per Week</SelectItem>
+                      <SelectItem value="month">Per Month</SelectItem>
+                      <SelectItem value="year">Per Year</SelectItem>
+                      <SelectItem value="unlimited">Unlimited</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.listing_limit?.type !== 'unlimited' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="limit_value">Listing Limit Value *</Label>
+                    <Input
+                      id="limit_value"
+                      type="number"
+                      min="1"
+                      value={formData.listing_limit?.value || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        listing_limit: {
+                          ...prev.listing_limit,
+                          value: parseInt(e.target.value) || 5
+                        }
+                      }))}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+
+        <DialogFooter className="px-6 py-4 border-t">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+          <Button onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
             </DialogFooter>
-          </form>
-        </Form>
       </DialogContent>
     </Dialog>
   );

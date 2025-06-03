@@ -1,17 +1,16 @@
+import React, { Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import AdminDashboard from './pages/AdminDashboard';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminPaymentsPage from './pages/AdminPaymentsPage';
+import AgentDashboard from './pages/AgentDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoadingScreen from './components/LoadingScreen';
+import NotFound from './pages/NotFound';
 import { AuthProvider } from "./contexts/AuthContext";
 import Auth from "./pages/Auth";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminUsersPage from "./pages/AdminUsersPage";
-import AdminPendingSignupsPage from "./pages/AdminPendingSignupsPage";
 import AdminListingsPage from "./pages/AdminListingsPage";
-import AgentDashboard from "./pages/AgentDashboard";
-import PendingApproval from "./pages/PendingApproval";
-import ProtectedRoute from "./components/ProtectedRoute";
-import LoadingScreen from "./components/LoadingScreen";
 import AgentPublicProfile from "./pages/AgentPublicProfile";
 import ListingDetail from "./pages/ListingDetail";
 
@@ -20,8 +19,14 @@ const queryClient = new QueryClient();
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
+      <Route path="/" element={<Auth />} />
       <Route path="/auth" element={<Auth />} />
+      
+      {/* Public Agent Profile Routes - These must come before protected routes */}
+      <Route path="/:agentSlug" element={<AgentPublicProfile />} />
+      <Route path="/:agentSlug/listing/:listingSlug" element={<ListingDetail />} />
+      
+      {/* Protected Admin Routes */}
       <Route 
         path="/admin" 
         element={
@@ -39,14 +44,6 @@ const AppRoutes = () => {
         } 
       />
       <Route 
-        path="/admin/pending-signups" 
-        element={
-          <ProtectedRoute allowedRoles={['super_admin']}>
-            <AdminPendingSignupsPage />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
         path="/admin/listings" 
         element={
           <ProtectedRoute allowedRoles={['super_admin']}>
@@ -55,30 +52,24 @@ const AppRoutes = () => {
         } 
       />
       <Route 
-        path="/agent" 
+        path="/admin/payments" 
         element={
-          <ProtectedRoute 
-            allowedRoles={['agent']}
-            requiredStatus={['approved']}
-          >
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <AdminPaymentsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Protected Agent Routes */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute allowedRoles={['agent']}>
             <AgentDashboard />
           </ProtectedRoute>
         } 
       />
-      <Route 
-        path="/pending" 
-        element={
-          <ProtectedRoute 
-            allowedRoles={['agent']}
-            requiredStatus={['pending_approval']}
-          >
-            <PendingApproval />
-          </ProtectedRoute>
-        } 
-      />
-      {/* Public Agent Profile Routes */}
-      <Route path="/:agentSlug" element={<AgentPublicProfile />} />
-      <Route path="/:agentSlug/listing/:listingId/:listingSlug" element={<ListingDetail />} />
+      
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -86,13 +77,11 @@ const AppRoutes = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-   
-      <BrowserRouter>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </BrowserRouter>
-   
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 

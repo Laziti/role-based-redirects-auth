@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Users, FileCheck, List, LogOut, Building } from 'lucide-react';
+import { LayoutDashboard, Users, FileCheck, List, LogOut, Building, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import '@/styles/portal-theme.css';
@@ -11,10 +11,26 @@ export const AdminSidebar = () => {
   const { signOut, user } = useAuth();
 
   const menuItems = [
-    { icon: <LayoutDashboard className="h-5 w-5" />, label: "Dashboard", path: "/admin" },
-    { icon: <Users className="h-5 w-5" />, label: "Users", path: "/admin/users" },
-    { icon: <FileCheck className="h-5 w-5" />, label: "Pending Signups", path: "/admin/pending-signups" },
-    { icon: <List className="h-5 w-5" />, label: "Listings", path: "/admin/listings" }
+    { 
+      icon: <LayoutDashboard className="h-5 w-5" />, 
+      label: "Dashboard", 
+      path: "/admin" 
+    },
+    { 
+      icon: <Users className="h-5 w-5" />, 
+      label: "User Management", 
+      path: "/admin/users" 
+    },
+    { 
+      icon: <CreditCard className="h-5 w-5" />, 
+      label: "Payment Approvals", 
+      path: "/admin/payments" 
+    },
+    { 
+      icon: <List className="h-5 w-5" />, 
+      label: "Listings", 
+      path: "/admin/listings" 
+    }
   ];
 
   // Desktop sidebar content
@@ -49,7 +65,6 @@ export const AdminSidebar = () => {
                   }`
                 }
               >
-                {/* Fix: Use a function component for conditional classes instead of a function returning a string */}
                 <div className={`p-1.5 rounded-md ${
                   location.pathname === item.path ? 'bg-gold-500 text-black' : 'bg-[var(--portal-card-bg)]'
                 }`}>
@@ -102,22 +117,12 @@ export const AdminSidebar = () => {
               }`
             }
           >
-            {/* Fix: Use a static string class instead of a function returning a string */}
             <div className={`p-1.5 rounded-lg ${location.pathname === item.path ? 'bg-gold-500/20' : ''}`}>
               {item.icon}
             </div>
             <span className="text-xs mt-1 font-medium">{item.label}</span>
           </NavLink>
         ))}
-        <button 
-          className="flex flex-col items-center p-2 text-red-500"
-          onClick={signOut}
-        >
-          <div className="p-1.5">
-            <LogOut className="h-5 w-5" />
-          </div>
-          <span className="text-xs mt-1 font-medium">Logout</span>
-        </button>
       </div>
     </div>
   );

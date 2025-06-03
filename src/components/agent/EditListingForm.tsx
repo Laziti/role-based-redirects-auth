@@ -46,6 +46,7 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
   const [additionalImages, setAdditionalImages] = useState<File[]>([]);
   const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
   const [existingAdditionalImageUrls, setExistingAdditionalImageUrls] = useState<string[]>([]);
+  const [editCount, setEditCount] = useState(0);
 
   const form = useForm<ListingFormValues>({
     resolver: zodResolver(listingSchema),
@@ -81,11 +82,14 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
           return;
         }
 
-        // Log the exact price from database
-        console.log('[EditForm] Raw price from DB:', data.price);
-        console.log('[EditForm] Price type from DB:', typeof data.price);
-        console.log('[EditForm] Price toString():', data.price.toString());
+        if (data.edit_count >= 2) {
+          alert('You have reached the maximum number of edits (2) for this listing.');
+          onCancel();
+          return;
+        }
 
+        setEditCount(data.edit_count || 0);
+        
         // Populate form fields
         form.reset({
           title: data.title,
@@ -96,10 +100,6 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
           whatsapp_link: data.whatsapp_link || '',
           telegram_link: data.telegram_link || ''
         });
-
-        // Log the form value after setting
-        console.log('[EditForm] Price in form after reset:', form.getValues('price'));
-        console.log('[EditForm] Price type in form:', typeof form.getValues('price'));
 
         // Set existing images
         if (data.main_image_url) {
@@ -168,6 +168,11 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
   };
 
   const onSubmit = async (values: ListingFormValues) => {
+    if (editCount >= 2) {
+      alert('You have reached the maximum number of edits (2) for this listing.');
+      return;
+    }
+
     if (!user) {
       return;
     }
@@ -246,7 +251,7 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
           phone_number: values.phone_number || null,
           whatsapp_link: values.whatsapp_link || null,
           telegram_link: values.telegram_link || null,
-          updated_at: new Date().toISOString()
+          edit_count: editCount + 1
         })
         .eq('id', listingId)
         .eq('user_id', user.id)

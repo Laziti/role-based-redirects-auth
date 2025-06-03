@@ -19,6 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Upload, X, Plus, Info, Camera, ArrowRight, Check, Building, Image, ThumbsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { createListingSlug } from "@/components/public/ListingCard";
+import { useNavigate } from 'react-router-dom';
 
 const listingSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -293,17 +295,17 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
         .from('listings')
         .insert([
           {
-          title: values.title,
-          description: values.description,
-          price: values.price,
-          location: values.location,
+            title: values.title,
+            description: values.description,
+            price: values.price,
+            location: values.location,
             city: values.city,
-          main_image_url: mainImagePublicUrl.publicUrl,
-          additional_image_urls: additionalImageUrls.length > 0 ? additionalImageUrls : null,
+            main_image_url: mainImagePublicUrl.publicUrl,
+            additional_image_urls: additionalImageUrls.length > 0 ? additionalImageUrls : null,
             user_id: user.id,
-            status: 'pending',
-          phone_number: values.phone_number || null,
-          whatsapp_link: values.whatsapp_link || null,
+            status: 'active',
+            phone_number: values.phone_number || null,
+            whatsapp_link: values.whatsapp_link || null,
             telegram_link: values.telegram_link || null,
             progress_status: values.progress_status,
             down_payment_percent: values.down_payment_percent,
@@ -324,8 +326,11 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
 
       if (agentError) throw agentError;
 
-      // Set the public listing URL with the agent's slug
-      setPublicListingUrl(`/${agentProfile.slug}/listing/${listing.id}`);
+      // Set the public listing URL
+      const publicListingUrl = agentProfile.slug
+        ? `/${agentProfile.slug}/listing/${createListingSlug(values.title)}`
+        : null;
+      setPublicListingUrl(publicListingUrl);
       
       // Reset form and state
       form.reset();
@@ -344,6 +349,8 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       setSubmitAttempted(false);
     }
   };
+
+  const navigate = useNavigate();
 
   return (
     <>
@@ -873,7 +880,11 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     whileHover={{ scale: 1.08 }}
                     whileTap={{ scale: 0.96 }}
                     className="bg-gold-500 hover:bg-gold-600 text-black font-semibold rounded-lg px-6 py-2 text-lg shadow-md transition"
-                    onClick={() => window.location.href = publicListingUrl}
+                    onClick={() => {
+                      if (publicListingUrl) {
+                        navigate(publicListingUrl);
+                      }
+                    }}
                   >
                     View Listing
                   </motion.button>

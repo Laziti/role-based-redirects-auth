@@ -9,8 +9,21 @@ import {
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { Loader2, ExternalLink, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from 'sonner';
 
 interface User {
   id: string;
@@ -18,41 +31,66 @@ interface User {
   first_name: string;
   last_name: string;
   phone_number: string;
-  status: string;
+  status: 'active' | 'inactive';
   career?: string;
   created_at: string;
   listing_count: number;
   payment_receipt_url?: string;
+  subscription_status: string;
+  subscription_end?: string;
+  listing_limit?: { type: string; value?: number };
 }
 
 interface UserDetailsModalProps {
-  user: User;
+  user: User | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDelete?: () => void;
 }
 
 interface UserListing {
   id: string;
   title: string;
-  status: string;
+  progress_status: string;
   created_at: string;
   price?: number;
   location?: string;
+  description?: string;
+  city?: string;
+  main_image_url?: string;
+  views?: number;
+  favorites?: number;
 }
 
-const UserDetailsModal = ({ user, open, onOpenChange }: UserDetailsModalProps) => {
+const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsModalProps) => {
   const [listings, setListings] = useState<UserListing[]>([]);
   const [loading, setLoading] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | undefined>(user.email);
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (open && user.id) {
+    if (open && user?.id) {
       fetchUserListings();
       fetchUserEmail();
+    } else {
+      // Reset state when modal closes
+      setListings([]);
+      setUserEmail(undefined);
     }
-  }, [open, user.id]);
+  }, [open, user?.id]);
+
+  useEffect(() => {
+    // Update email when user changes
+    if (user?.email) {
+      setUserEmail(user.email);
+    } else {
+      setUserEmail(undefined);
+    }
+  }, [user]);
 
   const fetchUserEmail = async () => {
+    if (!user) return;
+    
     if (user.email) {
       setUserEmail(user.email);
       return;
@@ -74,68 +112,167 @@ const UserDetailsModal = ({ user, open, onOpenChange }: UserDetailsModalProps) =
   };
 
   const fetchUserListings = async () => {
+    if (!user) return;
+    
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: listingsData, error: listingsError } = await supabase
         .from('listings')
-        .select('id, title, status, created_at, price, location')
+        .select(`
+          id,
+          title,
+          progress_status,
+          created_at,
+          price,
+          location,
+          description,
+          city,
+          main_image_url
+        `)
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-      if (error) throw error;
-      setListings(data || []);
+      if (listingsError) throw listingsError;
+
+      // Get view counts for each listing
+      const listingsWithStats = await Promise.all(
+        (listingsData || []).map(async (listing) => {
+          // For now, return the listing as is since we don't have views/favorites tables yet
+          return {
+            ...listing,
+            views: 0,
+            favorites: 0
+          };
+        })
+      );
+
+      setListings(listingsWithStats);
     } catch (error) {
       console.error('Error fetching user listings:', error);
+      toast.error('Failed to fetch listings');
     } finally {
       setLoading(false);
     }
   };
 
+  const formatDate = (date: string) => {
+    if (!date) return 'N/A';
+    return format(new Date(date), 'MMM d, yyyy');
+  };
+
+  const renderLimitBadge = (limit?: { type: string; value?: number }) => {
+    if (!limit) return 'Default (5/month)';
+    
+    if (limit.type === 'unlimited') {
+      return <Badge variant="outline" className="bg-blue-50">Unlimited</Badge>;
+    }
+    
+    return (
+      <Badge variant="outline" className="bg-green-50">
+        {limit.value}/{limit.type}
+      </Badge>
+    );
+  };
+
+  const handleDelete = () => {
+    setDeleteDialogOpen(false);
+    onDelete?.();
+  };
+
+  if (!user) return null;
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 py-4">
+            <div className="flex justify-between items-center">
           <DialogTitle>User Details</DialogTitle>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete User
+              </Button>
+            </div>
         </DialogHeader>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
+          <ScrollArea className="flex-1 px-6">
+            <div className="space-y-6 py-4">
+              {/* User Profile Section */}
+              <div className="bg-card rounded-lg p-4 border">
+                <h3 className="text-lg font-semibold mb-4">Profile Information</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground">Full Name</h4>
+                    <p>{user.first_name} {user.last_name}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground">Email</h4>
+                    <p>{userEmail || 'Loading...'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground">Phone</h4>
+                    <p>{user.phone_number || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
+                    <Badge 
+                      variant={user.status === 'active' ? 'outline' : 'secondary'}
+                      className={user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}
+                    >
+                      {user.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground">Career</h4>
+                    <p>{user.career || 'Not provided'}</p>
+                  </div>
             <div>
-              <h3 className="text-lg font-semibold">
-                {user.first_name} {user.last_name}
-              </h3>
-              <div className={`px-2 py-1 rounded text-xs inline-block ${
-                user.status === 'approved' 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {user.status === 'approved' ? 'Approved' : 'Pending'}
+                    <h4 className="text-sm font-medium text-muted-foreground">Member Since</h4>
+                    <p>{formatDate(user.created_at)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Subscription Section */}
+              <div className="bg-card rounded-lg p-4 border">
+                <h3 className="text-lg font-semibold mb-4">Subscription Details</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground">Plan</h4>
+                    <Badge 
+                      variant={user.subscription_status === 'pro' ? 'outline' : 'secondary'}
+                      className={user.subscription_status === 'pro' ? 'bg-gold-50 text-gold-700' : 'bg-blue-50 text-blue-700'}
+                    >
+                      {user.subscription_status.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground">Listing Limit</h4>
+                    {renderLimitBadge(user.listing_limit)}
+                  </div>
+                  {user.subscription_status === 'pro' && (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground">Expires</h4>
+                      <p>{formatDate(user.subscription_end || '')}</p>
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground">Total Listings</h4>
+                    <p>{user.listing_count}</p>
+            </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div className="font-medium">Email:</div>
-                <div>{userEmail || 'Loading...'}</div>
-                
-                <div className="font-medium">Phone Number:</div>
-                <div>{user.phone_number || 'Not provided'}</div>
-                
-                <div className="font-medium">Career/Profession:</div>
-                <div>{user.career || 'Not provided'}</div>
-                
-                <div className="font-medium">Account Created:</div>
-                <div>{format(new Date(user.created_at), 'MMM d, yyyy')}</div>
-                
-                <div className="font-medium">Total Listings:</div>
-                <div>{user.listing_count}</div>
-              </div>
-            </div>
-
+              {/* Payment Receipt Section */}
             {user.payment_receipt_url && (
-              <div className="space-y-2">
-                <h4 className="font-medium">Payment Receipt</h4>
-                <div className="border rounded p-2">
+                <div className="bg-card rounded-lg p-4 border">
+                  <h3 className="text-lg font-semibold mb-4">Payment Receipt</h3>
+                  <div className="space-y-4">
                   <a
                     href={user.payment_receipt_url}
                     target="_blank"
@@ -144,73 +281,117 @@ const UserDetailsModal = ({ user, open, onOpenChange }: UserDetailsModalProps) =
                   >
                     View Receipt <ExternalLink className="ml-1 h-4 w-4" />
                   </a>
-                </div>
-                {user.payment_receipt_url.endsWith('.jpg') || 
-                 user.payment_receipt_url.endsWith('.jpeg') || 
-                 user.payment_receipt_url.endsWith('.png') ? (
-                  <div className="border rounded p-2">
+                    {user.payment_receipt_url.match(/\.(jpg|jpeg|png|gif)$/i) && (
+                      <div className="border rounded-lg p-2 bg-background">
                     <img 
                       src={user.payment_receipt_url} 
                       alt="Payment Receipt" 
-                      className="max-h-48 mx-auto"
+                          className="max-h-48 mx-auto object-contain"
                     />
+                      </div>
+                    )}
                   </div>
-                ) : null}
               </div>
             )}
-          </div>
 
-          <div className="space-y-4">
-            <h4 className="font-medium">User Listings</h4>
+              {/* Listings Section */}
+              <div className="bg-card rounded-lg p-4 border">
+                <h3 className="text-lg font-semibold mb-4">Recent Listings</h3>
             {loading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
               </div>
             ) : listings.length > 0 ? (
-              <div className="max-h-96 overflow-y-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="py-2 text-left text-sm font-medium">Title</th>
-                      <th className="py-2 text-left text-sm font-medium">Price</th>
-                      <th className="py-2 text-left text-sm font-medium">Status</th>
-                      <th className="py-2 text-left text-sm font-medium">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  <div className="space-y-4">
                     {listings.map(listing => (
-                      <tr key={listing.id} className="border-b">
-                        <td className="py-2 text-sm font-medium">
-                          <div className="truncate max-w-[150px]">{listing.title}</div>
-                          <div className="text-xs text-gray-500">{listing.location || 'No location'}</div>
-                        </td>
-                        <td className="py-2 text-sm">{formatCurrency(listing.price)}</td>
-                        <td className="py-2 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            listing.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {listing.status || 'pending'}
-                          </span>
-                        </td>
-                        <td className="py-2 text-sm text-gray-500">
-                          {format(new Date(listing.created_at), 'MMM d, yyyy')}
-                        </td>
-                      </tr>
+                      <div key={listing.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{listing.title}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {listing.city ? `${listing.city}${listing.location ? `, ${listing.location}` : ''}` : listing.location || 'No location'}
+                            </p>
+                          </div>
+                          <Badge 
+                            variant={listing.progress_status === 'fully_finished' ? 'outline' : 'secondary'}
+                            className={
+                              listing.progress_status === 'fully_finished' 
+                                ? 'bg-green-50 text-green-700' 
+                                : 'bg-yellow-50 text-yellow-700'
+                            }
+                          >
+                            {listing.progress_status?.replace('_', ' ') || 'N/A'}
+                          </Badge>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Price:</span>{' '}
+                            {formatCurrency(listing.price)}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Listed:</span>{' '}
+                            {formatDate(listing.created_at)}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Views:</span>{' '}
+                            {listing.views || 0}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Favorites:</span>{' '}
+                            {listing.favorites || 0}
+                          </div>
+                        </div>
+                        {listing.description && (
+                          <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                            {listing.description}
+                          </p>
+                        )}
+                        {listing.main_image_url && (
+                          <div className="mt-2">
+                            <img 
+                              src={listing.main_image_url} 
+                              alt={listing.title}
+                              className="h-32 w-full object-cover rounded-md"
+                            />
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No listings found</p>
+                  <p className="text-muted-foreground text-center py-8">No listings found</p>
             )}
           </div>
         </div>
+          </ScrollArea>
 
-        <DialogFooter>
+          <DialogFooter className="px-6 py-4 border-t">
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user
+              account and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

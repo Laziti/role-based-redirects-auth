@@ -2,21 +2,73 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Plus, User, List, LogOut, Menu, Building, LayoutDashboard } from 'lucide-react';
+import { Home, Plus, User, List, LogOut, Menu, Building, LayoutDashboard, Crown, AlertCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { motion } from 'framer-motion';
 import '@/styles/portal-theme.css';
+import UpgradeSidebar from './UpgradeSidebar';
+import { supabase } from '@/integrations/supabase/client';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type AgentSidebarProps = {
   activeTab: string;
   setActiveTab: (tab: string) => void;
 };
 
+type MenuItem = {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  action: () => void;
+  highlight?: boolean;
+  notification?: boolean;
+  notificationContent?: string;
+};
+
 const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+  const [profile, setProfile] = React.useState<any>(null);
+  const [paymentDueSoon, setPaymentDueSoon] = React.useState<boolean>(false);
+  const [daysUntilPayment, setDaysUntilPayment] = React.useState<number | null>(null);
+  const [daysRemaining, setDaysRemaining] = React.useState<number | null>(null);
 
-  const menuItems = [
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('subscription_status, first_name, last_name, subscription_end_date, subscription_details')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!error && data) {
+        setProfile(data);
+        
+        // Check subscription status and end date
+        const endDate = data.subscription_end_date || data.subscription_details?.end_date;
+        if (endDate && data.subscription_status === 'pro') {
+          const paymentDate = new Date(endDate);
+          const today = new Date();
+          
+          // Reset time parts for accurate day calculation
+          today.setHours(0, 0, 0, 0);
+          paymentDate.setHours(0, 0, 0, 0);
+          
+          const diffTime = paymentDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          setDaysUntilPayment(diffDays);
+          setDaysRemaining(diffDays);
+          setPaymentDueSoon(diffDays >= 0 && diffDays <= 7);
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
+
+  const menuItems: MenuItem[] = [
     { 
       id: 'listings', 
       label: 'My Listings', 
@@ -33,9 +85,24 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
       id: 'account', 
       label: 'Account Info', 
       icon: <User className="h-5 w-5" />,
-      action: () => setActiveTab('account') 
+      action: () => setActiveTab('account'),
+      notification: paymentDueSoon,
+      notificationContent: daysUntilPayment !== null 
+        ? `Payment due in ${daysUntilPayment} day${daysUntilPayment === 1 ? '' : 's'}`
+        : undefined
     }
   ];
+
+  // Only add upgrade menu item if user is not pro
+  if (!profile?.subscription_status || profile.subscription_status === 'free') {
+    menuItems.push({ 
+      id: 'upgrade', 
+      label: 'Upgrade to Pro', 
+      icon: <Crown className="h-5 w-5" />,
+      action: () => setActiveTab('upgrade'),
+      highlight: true
+    });
+  }
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full portal-sidebar">
@@ -61,14 +128,36 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 ${
                   activeTab === item.id 
                     ? 'bg-gold-500/20 text-gold-500 font-medium' 
+                    : item.highlight
+                    ? 'text-gold-500 hover:bg-gold-500/10'
                     : 'text-[var(--portal-text-secondary)] hover:bg-[var(--portal-bg-hover)]'
                 }`}
                 onClick={item.action}
               >
-                <div className={`p-1.5 rounded-md ${activeTab === item.id ? 'bg-gold-500 text-black' : 'bg-[var(--portal-card-bg)]'}`}>
+                <div className={`p-1.5 rounded-md ${
+                  activeTab === item.id 
+                    ? 'bg-gold-500 text-black' 
+                    : item.highlight
+                    ? 'bg-gold-500/20'
+                    : 'bg-[var(--portal-card-bg)]'
+                }`}>
                   {item.icon}
                 </div>
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {item.notification && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="h-6 w-6 rounded-full bg-amber-500/20 flex items-center justify-center">
+                          <AlertCircle className="h-4 w-4 text-amber-500" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{item.notificationContent}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             </motion.div>
           ))}
@@ -79,11 +168,29 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
         <div className="p-4 mb-4 rounded-xl bg-[var(--portal-card-bg)] border border-[var(--portal-border)]">
           <div className="flex items-center space-x-3 mb-2">
             <div className="h-10 w-10 rounded-full bg-gold-500/20 text-gold-500 flex items-center justify-center font-semibold">
-              {user?.email?.charAt(0).toUpperCase() || 'A'}
+              {profile?.first_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || 'A'}
             </div>
-            <div className="overflow-hidden">
-              <p className="font-medium truncate text-[var(--portal-text)]">{user?.email}</p>
-              <p className="text-sm text-gold-500">Agent</p>
+            <div className="overflow-hidden flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-medium truncate text-[var(--portal-text)]">
+                  {profile?.first_name 
+                    ? `${profile.first_name} ${profile.last_name}`
+                    : user?.email}
+                </p>
+                {profile?.subscription_status === 'pro' && (
+                  <span className="bg-gold-500/10 text-gold-500 text-xs font-semibold px-2 py-0.5 rounded-full border border-gold-500/20 whitespace-nowrap">
+                    PRO
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-gold-500">Agent</p>
+                {profile?.subscription_status === 'pro' && daysRemaining !== null && (
+                  <span className="text-xs text-[var(--portal-text-secondary)]">
+                    • {daysRemaining} day{daysRemaining === 1 ? '' : 's'} remaining
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -104,7 +211,7 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
   const MobileNav = () => (
     <div className="fixed bottom-0 left-0 right-0 bg-[var(--portal-sidebar-bg)] border-t border-[var(--portal-border)] py-2 px-4 md:hidden z-10">
       <div className="flex justify-around items-center">
-        {menuItems.map((item) => (
+        {menuItems.slice(0, 3).map((item) => (
           <button
             key={item.id}
             className={`flex flex-col items-center p-2 rounded-lg transition-all ${
@@ -112,21 +219,26 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
             }`}
             onClick={item.action}
           >
-            <div className={`p-1.5 rounded-lg ${activeTab === item.id ? 'bg-gold-500/20' : ''}`}>
+            <div className={`p-1.5 rounded-lg ${activeTab === item.id ? 'bg-gold-500/20' : ''} relative`}>
               {item.icon}
+              {item.notification && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 bg-amber-500 rounded-full border-2 border-[var(--portal-sidebar-bg)]"></span>
+              )}
             </div>
             <span className="text-xs mt-1 font-medium">{item.label}</span>
           </button>
         ))}
-        <button 
-          className="flex flex-col items-center p-2 text-red-500"
-          onClick={signOut}
-        >
-          <div className="p-1.5">
-            <LogOut className="h-5 w-5" />
-          </div>
-          <span className="text-xs mt-1 font-medium">Logout</span>
-        </button>
+        {profile?.subscription_status !== 'pro' && (
+          <button 
+            className="flex flex-col items-center p-2 text-gold-500"
+            onClick={() => setActiveTab('upgrade')}
+          >
+            <div className="p-1.5 bg-gold-500/20 rounded-lg">
+              <Crown className="h-5 w-5" />
+            </div>
+            <span className="text-xs mt-1 font-medium">Upgrade</span>
+          </button>
+        )}
       </div>
     </div>
   );

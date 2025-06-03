@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { formatCurrency, encodeListingId } from '@/lib/formatters';
+import { formatCurrency } from '@/lib/formatters';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
 import { MapPin, ImageIcon, DollarSign, Clock, ExternalLink } from 'lucide-react';
@@ -16,7 +16,7 @@ interface ListingCardProps {
   createdAt?: string;
 }
 
-const createListingSlug = (title: string) => {
+export const createListingSlug = (title: string) => {
   return title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -94,7 +94,7 @@ const ListingCard = ({
         )}
         
         <Link 
-          to={`/${agentSlug}/listing/${encodeListingId(id)}/${createListingSlug(title)}`}
+          to={`/${agentSlug}/listing/${createListingSlug(title)}`}
           className="inline-flex items-center text-gold-500 hover:text-gold-600 font-medium text-sm group-hover:underline transition-colors"
         >
           View Details

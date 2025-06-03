@@ -15,7 +15,7 @@ const Index = () => {
       if (userRole === 'super_admin') {
         navigate('/admin');
       } else if (userRole === 'agent' && userStatus === 'approved') {
-        navigate('/agent');
+        navigate('/dashboard');
       } else if (userRole === 'agent' && userStatus === 'pending_approval') {
         navigate('/pending');
       }
@@ -202,7 +202,7 @@ const Index = () => {
                 ) : (
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                   <Button 
-                    onClick={() => userRole === 'super_admin' ? navigate('/admin') : navigate('/agent')}
+                    onClick={() => userRole === 'super_admin' ? navigate('/admin') : navigate('/dashboard')}
                       className="bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-600 hover:to-gold-500 text-black px-10 py-6 rounded-xl shadow-xl shadow-gold-500/20 hover:shadow-gold-500/30 transition-all duration-300 font-semibold text-base"
                   >
                     Go to Dashboard

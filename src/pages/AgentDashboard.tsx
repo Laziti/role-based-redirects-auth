@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,11 +8,11 @@ import ListingTable from '@/components/agent/ListingTable';
 import CreateListingForm from '@/components/agent/CreateListingForm';
 import EditListingForm from '@/components/agent/EditListingForm';
 import AccountInfo from '@/components/agent/AccountInfo';
-import { Loader2, Plus, Briefcase, X, ArrowRight, Building, Home, DollarSign, Copy, CheckCircle, Link as LinkIcon, Share2, Check, ChevronRight, HelpCircle, Rocket, Globe, Share } from 'lucide-react';
+import { Loader2, Plus, X, Building, Copy, Share2, Check, Rocket, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import '@/styles/portal-theme.css';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createSlug } from '@/lib/formatters';
+import UpgradeSidebar from '@/components/agent/UpgradeSidebar';
 
 const AgentDashboard = () => {
   const { user, userStatus, signOut, refreshSession } = useAuth();
@@ -29,20 +29,64 @@ const AgentDashboard = () => {
   const [showWelcomeCard, setShowWelcomeCard] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [headerLinkCopied, setHeaderLinkCopied] = useState(false);
+  const lastRefreshTime = useRef(0);
+  const refreshCooldown = 10000; // 10 seconds cooldown between refreshes
+
+  const fetchListings = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      // Only refresh session if enough time has passed since last refresh
+      const now = Date.now();
+      if (now - lastRefreshTime.current >= refreshCooldown) {
+        try {
+          await refreshSession();
+          lastRefreshTime.current = now;
+        } catch (error) {
+          // If we hit rate limit, continue with current session
+          if (error?.message?.includes('rate limit')) {
+            console.warn('Rate limit hit for session refresh, continuing with current session');
+          } else {
+            throw error;
+          }
+        }
+      }
+      
+      // Force fresh data with no caching
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setListings(data || []);
+    } catch (error) {
+      console.error('Error fetching listings:', error);
+      // If we hit rate limit, show a user-friendly message
+      if (error?.message?.includes('rate limit')) {
+        // You might want to show this in the UI
+        console.warn('Please wait a moment before refreshing again');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Function to get user's public profile URL
   const getPublicProfileUrl = () => {
     if (!profileData) return '';
     
-    // Create slug from user name
-    const slug = createSlug(`${profileData.first_name} ${profileData.last_name}`);
+    // Use the slug if available, otherwise create one from name
+    const profileSlug = profileData.slug || createSlug(`${profileData.first_name} ${profileData.last_name}`);
     
     // Get base URL without any path segments
     const url = new URL(window.location.href);
     const baseUrl = `${url.protocol}//${url.host}`;
     
     // Return the complete URL
-    return `${baseUrl}/${slug}`;
+    return `${baseUrl}/${profileSlug}`;
   };
 
   // Helper function for clipboard operations
@@ -154,15 +198,8 @@ const AgentDashboard = () => {
         // Check if user is a first-time visitor
         const hasSeen = hasUserSeenWelcome();
         
-        // Log for debugging
-        console.log('[Dashboard] First login check:', { 
-          hasSeen, 
-          userId: user.id 
-        });
-        
         if (!hasSeen) {
           // This is a first-time user, show welcome card
-          console.log('[Dashboard] First-time user detected, showing welcome card');
           // Set a small delay to ensure profile data is loaded
           setTimeout(() => {
             setShowWelcomeCard(true);
@@ -172,17 +209,17 @@ const AgentDashboard = () => {
           markUserAsSeenWelcome();
         }
 
-        // Fetch user's listings
-        const { data: listingsData, error: listingsError } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (listingsError) throw listingsError;
-        setListings(listingsData || []);
+        // Only fetch listings if we haven't recently fetched them
+        const now = Date.now();
+        if (now - lastRefreshTime.current >= refreshCooldown) {
+          await fetchListings();
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
+        // If we hit rate limit, show a user-friendly message
+        if (error?.message?.includes('rate limit')) {
+          console.warn('Please wait a moment before refreshing again');
+        }
       } finally {
         setLoading(false);
       }
@@ -196,27 +233,6 @@ const AgentDashboard = () => {
     };
   }, [user, userStatus, navigate]);
 
-  const handleDeleteListing = async (listingId) => {
-    if (!confirm('Are you sure you want to delete this listing? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('listings')
-        .delete()
-        .eq('id', listingId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Remove the deleted listing from state
-      setListings(prevListings => prevListings.filter(listing => listing.id !== listingId));
-    } catch (error) {
-      console.error('Error deleting listing:', error);
-    }
-  };
-  
   const handleEditListing = (listingId) => {
     setCurrentListingId(listingId);
     setActiveTab('edit');
@@ -226,46 +242,6 @@ const AgentDashboard = () => {
     // Refresh listings
     setActiveTab('listings');
     // Refetch listings to get updated data
-    const fetchListings = async () => {
-      if (!user) return;
-
-      setLoading(true);
-      try {
-        // Refresh auth session before fetching listings
-        await refreshSession();
-        
-        console.log('[Dashboard] Starting listings refetch after edit');
-        
-        // Force fresh data with no caching
-        const { data, error } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .throwOnError();
-
-        if (error) throw error;
-        
-        if (data) {
-          // Log each listing's price
-          console.log('[Dashboard] Fetched listings details:');
-          data.forEach(listing => {
-            console.log(`[Dashboard] Listing ${listing.id}:`, {
-              price: listing.price,
-              priceType: typeof listing.price,
-              priceToString: listing.price.toString()
-            });
-          });
-          
-          setListings(data);
-        }
-      } catch (error) {
-        console.error('[Dashboard] Error fetching listings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchListings();
   };
 
@@ -456,126 +432,96 @@ const AgentDashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen portal-layout">
+    <div className="flex h-screen bg-[var(--portal-bg)]">
       <AgentSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
-      <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto">
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-6xl mx-auto"
-        >
-          <div className="mb-8 flex justify-between items-center">
-            <div className="portal-breadcrumb">
-              <span className="portal-breadcrumb-item">Home</span>
-              <span className="portal-breadcrumb-separator">/</span>
-              <span className="portal-breadcrumb-item active">
-                {activeTab === 'listings' ? 'My Listings' : 
-                 activeTab === 'create' ? 'Create New Listing' : 
-                 activeTab === 'edit' ? 'Edit Listing' : 'Account Information'}
-              </span>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-[var(--portal-border)]">
+          <div className="flex items-center">
+            <h1 className="text-2xl font-bold text-[var(--portal-text)]">
+              {activeTab === 'listings' && 'My Properties'}
+              {activeTab === 'create' && 'Create New Listing'}
+              {activeTab === 'edit' && 'Edit Listing'}
+              {activeTab === 'account' && 'Account Information'}
+              {activeTab === 'upgrade' && 'Upgrade to Pro'}
+            </h1>
             </div>
             
-            {/* Profile link button */}
-            {profileData && activeTab === 'listings' && (
+          {/* Share Profile Button */}
               <Button 
                 variant="outline" 
-                size="sm"
-                className="text-[var(--portal-text-secondary)] hover:text-[var(--portal-text)] border-[var(--portal-border)]"
+            className="border-[var(--portal-border)] text-[var(--portal-text-secondary)] hover:text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
                 onClick={copyProfileLinkFromHeader}
               >
-                <Share className="h-4 w-4 mr-1" />
-                {headerLinkCopied ? 'Link Copied!' : 'Share My Profile'}
-              </Button>
+            {headerLinkCopied ? (
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Share2 className="h-4 w-4 mr-2" />
+                Share My Profile
+              </>
             )}
-          </div>
-
-          {activeTab === "listings" && (
-            <motion.div 
-              key="listings"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="portal-animate-in"
-            >
-              <div className="portal-card mb-6">
-                <h2 className="portal-title text-[var(--portal-text)] text-2xl font-bold">My Properties</h2>
-                <p className="portal-subtitle text-[var(--portal-text-secondary)]">Manage your property listings</p>
+          </Button>
               </div>
               
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto p-6">
               {loading ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 text-gold-500 animate-spin" />
                 </div>
-              ) : listings.length > 0 ? (
-                <div className="portal-card">
+          ) : (
+            <>
+              {/* Welcome Card */}
+              <AnimatePresence>
+                {showWelcomeCard && <WelcomeCard />}
+              </AnimatePresence>
+
+              {/* Tab Content */}
+              {activeTab === 'listings' && (
+                listings.length > 0 ? (
                   <ListingTable 
                     listings={listings} 
-                    onDelete={handleDeleteListing}
                     onEdit={handleEditListing}
                   />
-                </div>
               ) : (
-                <div className="portal-card">
                   <EmptyListingsState />
-                </div>
+                )
               )}
-            </motion.div>
-          )}
-
-          {activeTab === "create" && (
-            <motion.div 
-              key="create"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="w-full"
-            >
-              <CreateListingForm 
-                onSuccess={() => {
+              
+              {activeTab === 'create' && (
+                <CreateListingForm onSuccess={() => {
                   setActiveTab('listings');
-                }} 
-              />
-            </motion.div>
-          )}
-          
-          {activeTab === "edit" && currentListingId && (
-            <motion.div 
-              key="edit"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="portal-card portal-animate-in"
-            >
+                  // Refetch listings after successful creation
+                  fetchListings();
+                }} />
+              )}
+              
+              {activeTab === 'edit' && currentListingId && (
               <EditListingForm 
                 listingId={currentListingId}
                 onSuccess={handleEditSuccess}
                 onCancel={() => setActiveTab('listings')}
               />
-            </motion.div>
-          )}
+              )}
+              
+              {activeTab === 'account' && (
+                <div className="grid grid-cols-1">
+                  <AccountInfo listings={listings} profile={profileData} onRefresh={fetchListings} />
+                </div>
+              )}
 
-          {activeTab === "account" && (
-            <motion.div 
-              key="account"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="portal-animate-in"
-            >
-              <AccountInfo listings={listings} />
-            </motion.div>
+              {activeTab === 'upgrade' && profileData?.subscription_status !== 'pro' && (
+                <UpgradeSidebar />
+              )}
+            </>
           )}
-        </motion.div>
-      </main>
-      
-      {/* Welcome card popup for first-time users */}
-      <WelcomeCard />
+        </div>
+      </div>
     </div>
   );
 };

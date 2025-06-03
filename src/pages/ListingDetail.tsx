@@ -7,38 +7,11 @@ import ImageGallery from '@/components/public/ImageGallery';
 import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send, Share2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Define interfaces directly
-interface Listing {
-  id: string;
-  title: string;
-  description?: string;
-  price: number;
-  location?: string;
-  created_at: string;
-  main_image_url?: string;
-  additional_image_urls?: string[];
-  whatsapp_link?: string;
-  telegram_link?: string;
-  user_id?: string;
-  city?: string;
-  progress_status?: string;
-  bank_option?: boolean;
-  down_payment_percent?: number;
-}
-
-interface Agent {
-  id: string;
-  first_name: string;
-  last_name: string;
-  career?: string;
-  phone_number?: string;
-  avatar_url?: string;
-  slug?: string;
-}
+import { createListingSlug } from '@/components/public/ListingCard';
+import { Listing, Agent } from '@/types';
 
 const ListingDetail = () => {
-  const { agentSlug, listingId, listingSlug } = useParams<{ agentSlug: string; listingId: string; listingSlug: string }>();
+  const { agentSlug, listingSlug } = useParams();
   const navigate = useNavigate();
   const [listing, setListing] = useState<Listing | null>(null);
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -48,93 +21,66 @@ const ListingDetail = () => {
   const shareUrlRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const fetchListingAndAgent = async () => {
-      setLoading(true);
+    const fetchListing = async () => {
       try {
-        // Decode the listing ID
-        const decodedListingId = decodeListingId(listingId);
+        setLoading(true);
+        setError(null);
 
-        // Fetch the listing
-        const { data: listingData, error: listingError } = await supabase
+        // Get all listings for this agent in a single query
+        const { data: listings, error: listingsError } = await supabase
           .from('listings')
-          .select('*')
-          .eq('id', decodedListingId)
-          .single();
-          
-        if (listingError) throw listingError;
-        
-        if (!listingData) {
-          navigate('/not-found');
-          return;
+          .select(`
+            *,
+            agent:profiles!listings_user_id_fkey (
+              id,
+              first_name,
+              last_name,
+              career,
+              phone_number,
+              avatar_url,
+              slug,
+              status
+            )
+          `)
+          .eq('agent.slug', agentSlug)
+          .eq('agent.status', 'approved');
+
+        if (listingsError) throw new Error('Error fetching listings');
+        if (!listings || listings.length === 0) throw new Error('No listings found');
+
+        // Find the listing with matching slug
+        const matchingListing = listings.find(
+          listing => createListingSlug(listing.title) === listingSlug
+        );
+
+        if (!matchingListing) {
+          throw new Error('Listing not found');
         }
 
-        // Create slug from listing title
-        const expectedSlug = listingData.title
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '');
+        // Extract agent data from the joined query
+        const agentData = matchingListing.agent;
+        delete matchingListing.agent; // Remove agent data from listing object
 
-        // If the URL slug doesn't match the expected slug, redirect to the correct URL
-        if (listingSlug !== expectedSlug) {
-          navigate(`/${agentSlug}/listing/${listingId}/${expectedSlug}`, { replace: true });
-          return;
-        }
-        
-        setListing(listingData);
-        
-        // Fetch the agent - first try by slug
-        const { data: agentData, error: agentError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, career, phone_number, avatar_url, slug')
-          .eq('id', listingData.user_id)
-          .eq('status', 'approved')
-          .single();
-          
-        if (agentError) throw agentError;
-        
-        if (!agentData) {
-          navigate('/not-found');
-          return;
-        }
-        
-        // Check if the agent has a slug and if it matches the URL
-        // If not, verify using the generated slug from name
-        let verifiedSlug = agentSlug;
-        
+        setListing(matchingListing);
+        setAgent(agentData);
+
+        // Handle agent slug verification and redirects
         if (agentData.slug && agentData.slug !== agentSlug) {
-          navigate(`/${agentData.slug}/listing/${listingId}`, { replace: true });
+          navigate(`/${agentData.slug}/listing/${createListingSlug(matchingListing.title)}`, { replace: true });
           return;
-        } else if (!agentData.slug) {
-          // Generate slug from name
-          const expectedSlug = createSlug(`${agentData.first_name} ${agentData.last_name}`);
-          
-          // Update agent profile with the slug
-          if (expectedSlug === agentSlug) {
-            await supabase
-              .from('profiles')
-              .update({ slug: expectedSlug })
-              .eq('id', agentData.id);
-            
-            verifiedSlug = expectedSlug;
-          } else if (expectedSlug !== agentSlug) {
-            navigate(`/${expectedSlug}/listing/${listingId}`, { replace: true });
-            return;
-          }
         }
-        
-        setAgent({...agentData, slug: verifiedSlug});
-      } catch (error) {
-        console.error('Error fetching listing details:', error);
-        navigate('/not-found');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        navigate(`/${agentSlug}`, { replace: true });
       } finally {
         setLoading(false);
       }
     };
 
-    if (listingId && agentSlug) {
-      fetchListingAndAgent();
+    if (agentSlug && listingSlug) {
+      fetchListing();
     }
-  }, [listingId, agentSlug, listingSlug, navigate]);
+  }, [agentSlug, listingSlug, navigate]);
 
   const handleCopyLink = () => {
     const url = window.location.href;

@@ -11,7 +11,7 @@ import LoadingScreen from './components/LoadingScreen';
 import NotFound from './pages/NotFound';
 import { AuthProvider } from "./contexts/AuthContext";
 import Auth from "./pages/Auth";
-import LandingPage from "./pages/LandingPage";
+import Index from "./pages/Index";
 import AdminListingsPage from "./pages/AdminListingsPage";
 import AgentPublicProfile from "./pages/AgentPublicProfile";
 import ListingDetail from "./pages/ListingDetail";
@@ -23,7 +23,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
       
       {/* Public Agent Profile Routes - These must come before protected routes */}

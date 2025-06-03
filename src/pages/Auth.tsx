@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Check as CheckIcon, Building as BuildingIcon, ArrowLeft, Mail, Lock, User, Phone, Briefcase, Upload } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -32,7 +31,7 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, user, userRole } = useAuth();
+  const { signIn, signUp, user, userRole, userStatus } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -47,6 +46,21 @@ const Auth = () => {
     // Clear localStorage after using it
     localStorage.removeItem('authMode');
   }, []);
+
+  // Redirect authenticated users
+  useEffect(() => {
+    if (user && userRole) {
+      if (userRole === 'super_admin') {
+        navigate('/admin');
+      } else if (userRole === 'agent') {
+        if (userStatus === 'approved') {
+          navigate('/dashboard');
+        } else if (userStatus === 'pending_approval') {
+          navigate('/pending');
+        }
+      }
+    }
+  }, [user, userRole, userStatus, navigate]);
 
   const signInForm = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -80,8 +94,7 @@ const Auth = () => {
         description: "Signed in successfully",
       });
       
-      // Navigate based on user role - this will be handled by ProtectedRoute
-      navigate('/dashboard');
+      // The redirect will be handled by the useEffect above
     } catch (error: any) {
       console.error('Sign-in error:', error);
       toast({

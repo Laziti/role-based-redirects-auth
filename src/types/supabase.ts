@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -33,6 +34,9 @@ export interface Database {
           } | null
           subscription_end_date?: string | null
           slug?: string | null
+          status?: string | null
+          avatar_url?: string | null
+          payment_receipt_url?: string | null
           created_at: string
           updated_at: string
         }
@@ -48,6 +52,9 @@ export interface Database {
           subscription_details?: Json | null
           subscription_end_date?: string | null
           slug?: string | null
+          status?: string | null
+          avatar_url?: string | null
+          payment_receipt_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -63,6 +70,9 @@ export interface Database {
           subscription_details?: Json | null
           subscription_end_date?: string | null
           slug?: string | null
+          status?: string | null
+          avatar_url?: string | null
+          payment_receipt_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -72,6 +82,10 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
+      generate_unique_slug: {
+        Args: { first_name: string; last_name: string }
+        Returns: string
+      }
       [_ in never]: never
     }
     Enums: {

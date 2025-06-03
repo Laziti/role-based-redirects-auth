@@ -28,15 +28,18 @@ export const formatCurrency = (amount?: number | null): string => {
 };
 
 /**
- * Create a URL-friendly slug from a string
+ * Create a URL-friendly slug from text
  */
-export const createSlug = (text: string): string => {
+export const createSlug = (text: string) => {
   return text
+    .toString()
     .toLowerCase()
-    .replace(/[^\w\s-]/g, '') // Remove non-word chars
-    .replace(/\s+/g, '-')     // Replace spaces with dashes
-    .replace(/-+/g, '-')      // Replace multiple dashes with single dash
-    .trim();
+    .trim()
+    .replace(/\s+/g, '-') // Replace spaces with -
+    .replace(/[^\w\-]+/g, '') // Remove all non-word characters
+    .replace(/\-\-+/g, '-') // Replace multiple - with single -
+    .replace(/^-+/, '') // Trim - from start of text
+    .replace(/-+$/, ''); // Trim - from end of text
 };
 
 /**

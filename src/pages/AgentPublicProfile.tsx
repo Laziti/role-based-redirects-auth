@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,16 +8,17 @@ import ListingCard from '@/components/public/ListingCard';
 import { Loader2, Building, ChevronRight, Home, ArrowLeft, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createSlug } from '@/lib/formatters';
 
 interface AgentProfile {
   id: string;
+  user_id: string;
   first_name: string;
   last_name: string;
   career?: string;
   phone_number?: string;
   avatar_url?: string;
   slug?: string;
+  status?: string;
 }
 
 interface Listing {
@@ -51,82 +53,49 @@ const AgentPublicProfile = () => {
     const fetchAgentAndListings = async () => {
       setLoading(true);
       try {
-        // Find the agent with the matching slug directly
+        // Find the agent with the matching slug
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name, career, phone_number, avatar_url, status, slug')
+          .select('id, user_id, first_name, last_name, career, phone_number, avatar_url, status, slug')
           .eq('status', 'approved')
-          .eq('slug', agentSlug)
+          .eq('slug', agentSlug!)
           .single();
           
-        console.log('Fetched agent profile data:', profileData);
-        console.log('Profile fetch error:', profileError);
-
         if (profileError) {
-          // If no match by slug field, try the legacy method using name
-          const { data: profiles, error: backupError } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name, career, phone_number, avatar_url, status')
-            .eq('status', 'approved');
-            
-        console.log('Fetched profiles for backup search:', profiles);
-        console.log('Backup profile fetch error:', backupError);
-
-          if (backupError) throw backupError;
-          
-          if (!profiles || profiles.length === 0) {
-            navigate('/not-found');
-            return;
-          }
-          
-          // Find the agent whose name matches the slug
-          const matchedAgent = profiles.find(profile => {
-            const fullName = `${profile.first_name} ${profile.last_name}`;
-            return createSlug(fullName) === agentSlug;
-          });
-          
-          if (!matchedAgent) {
-            navigate('/not-found');
-            return;
-          }
-          
-          setAgent(matchedAgent);
-          
-          // Update the profile with the slug for future use
-          await supabase
-            .from('profiles')
-            .update({ slug: agentSlug })
-            .eq('id', matchedAgent.id);
-        } else {
-          setAgent(profileData);
+          console.error('Error fetching agent profile:', profileError);
+          setError('Agent not found');
+          setLoading(false);
+          navigate('/not-found');
+          return;
         }
+
+        setAgent(profileData);
         
         // Fetch the agent's listings
         const { data: listingsData, error: listingsError } = await supabase
           .from('listings')
           .select('id, title, price, location, city, main_image_url, description, created_at, progress_status, bank_option')
-          .eq('user_id', agent ? agent.id : profileData.id)
-          .neq('status', 'hidden')
+          .eq('user_id', profileData.user_id)
           .order('created_at', { ascending: false });
           
-        console.log('Fetched listings data:', listingsData);
-        console.log('Listings fetch error:', listingsError);
-
         if (listingsError) {
           console.error('Error fetching listings:', listingsError);
           setListings([]);
         } else {
-          setListings(listingsData as unknown as Listing[]);
+          setListings(listingsData || []);
         }
       } catch (error) {
-        console.error('Error fetching agent profile:', error);
+        console.error('Error fetching data:', error);
+        setError('Failed to load profile data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAgentAndListings();
-  }, [agentSlug, navigate, agent?.id]);
+    if (agentSlug) {
+      fetchAgentAndListings();
+    }
+  }, [agentSlug, navigate]);
 
   useEffect(() => {
     if (listings.length > 0) {
@@ -179,8 +148,24 @@ const AgentPublicProfile = () => {
     );
   }
 
-  if (!agent) return null;
-
+  if (error || !agent) {
+    return (
+      <div className="min-h-screen bg-[var(--portal-bg)] flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-500 mb-4">Error</h1>
+          <p className="text-[var(--portal-text-secondary)]">{error || "Agent not found"}</p>
+          <Button 
+            variant="default"
+            onClick={() => navigate('/')}
+            className="mt-4"
+          >
+            Return to Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
   const pageTitle = `${agent.first_name} ${agent.last_name} - Real Estate Listings`;
   const pageDescription = `Browse property listings by ${agent.first_name} ${agent.last_name}${agent.career ? `, ${agent.career}` : ''}`;
 
@@ -352,7 +337,7 @@ const AgentPublicProfile = () => {
                     price={listing.price}
                     location={listing.location}
                     mainImageUrl={listing.main_image_url}
-                    agentSlug={agentSlug}
+                    agentSlug={agentSlug!}
                     description={listing.description}
                     createdAt={listing.created_at}
                   />
